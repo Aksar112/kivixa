@@ -2,6 +2,11 @@ import { jsPDF } from "jspdf";
 import showdown from 'showdown';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Set About version dynamically
+    const aboutVersion = document.getElementById('about-version');
+    if (aboutVersion && window.electron?.getAppVersion) {
+        aboutVersion.textContent = window.electron.getAppVersion();
+    }
     // --- Update Message UI ---
     const updateDiv = document.getElementById('update-message');
     let restartBtn = null;

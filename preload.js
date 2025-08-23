@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+const { app } = require('electron');
+const appVersion = process.versions.electron ? require('electron').app.getVersion() : '1.0.0';
+
 contextBridge.exposeInMainWorld('electron', {
     // Notes
     getNotes: (folder_id) => ipcRenderer.invoke('get-notes', folder_id),
@@ -28,5 +31,7 @@ contextBridge.exposeInMainWorld('electron', {
         restartApp: () => {
             ipcRenderer.send('restart_app');
         }
-    }
+    },
+    // About
+    getAppVersion: () => appVersion
 });
