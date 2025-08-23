@@ -1,312 +1,383 @@
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+document.addEventListener('DOMContentLoaded', () => {
+    // -- Canvas Setup --
+    const pagesCanvas = document.getElementById('pages-canvas');
+    const drawingCanvas = document.getElementById('drawing-canvas');
+    const liveCanvas = document.getElementById('live-canvas');
+    const pctx = pagesCanvas.getContext('2d');
+    const dctx = drawingCanvas.getContext('2d');
+    const lctx = liveCanvas.getContext('2d');
 
-const toolbar = {
-    addPageBtn: document.getElementById('add-page-btn'),
-    insertPageBtn: document.getElementById('insert-page-btn'),
-    tearPageBtn: document.getElementById('tear-page-btn'),
-    pageSizeSelect: document.getElementById('page-size-select'),
-    customSizeInputs: document.getElementById('custom-size-inputs'),
-    customWidthInput: document.getElementById('custom-width-input'),
-    customHeightInput: document.getElementById('custom-height-input'),
-    pageTypeSelect: document.getElementById('page-type-select'),
-    pageColorPicker: document.getElementById('page-color-picker'),
-};
+    // -- Toolbar UI --
+    const toolbar = {
+        // Page Controls
+        addPageBtn: document.getElementById('add-page-btn'),
+        insertPageBtn: document.getElementById('insert-page-btn'),
+        tearPageBtn: document.getElementById('tear-page-btn'),
+        pageSizeSelect: document.getElementById('page-size-select'),
+        customSizeInputs: document.getElementById('custom-size-inputs'),
+        customWidthInput: document.getElementById('custom-width-input'),
+        customHeightInput: document.getElementById('custom-height-input'),
+        pageTypeSelect: document.getElementById('page-type-select'),
+        pageColorPicker: document.getElementById('page-color-picker'),
+        // Tool Selection
+        penToolBtn: document.getElementById('pen-tool-btn'),
+        eraserToolBtn: document.getElementById('eraser-tool-btn'),
+        laserToolBtn: document.getElementById('laser-tool-btn'),
+        // Pen Options
+        penOptions: document.getElementById('pen-options'),
+        penColorPicker: document.getElementById('pen-color-picker'),
+        penStyleSelect: document.getElementById('pen-style-select'),
+        penThicknessSlider: document.getElementById('pen-thickness-slider'),
+        penOpacitySlider: document.getElementById('pen-opacity-slider'),
+        // Eraser Options
+        eraserOptions: document.getElementById('eraser-options'),
+        eraserSizeSlider: document.getElementById('eraser-size-slider'),
+        eraserStyleSelect: document.getElementById('eraser-style-select'),
+    };
 
-let pages = [];
-let panX = 0;
-let panY = 0;
-let zoom = 1;
-let hoveredPage = null;
+    // -- State Management --
+    const state = {
+        pages: [],
+        panX: 0,
+        panY: 0,
+        zoom: 1,
+        hoveredPage: null,
+        isDrawing: false,
+        isPanning: false,
+        lastX: 0,
+        lastY: 0,
+        currentStroke: [],
+        activeTool: 'pen',
+        pen: {
+            color: '#000000',
+            style: 'fine-liner',
+            thickness: 5,
+            opacity: 1,
+        },
+        eraser: {
+            size: 20,
+            style: 'pixel',
+        },
+        laser: {
+            x: 0,
+            y: 0,
+        }
+    };
 
-const PAGE_SIZES = {
-    a4: { width: 794, height: 1123 },
-    a3: { width: 1123, height: 1587 },
-    letter: { width: 816, height: 1056 },
-};
+    const PAGE_SIZES = {
+        a4: { width: 794, height: 1123 },
+        a3: { width: 1123, height: 1587 },
+        letter: { width: 816, height: 1056 },
+    };
 
-function getPageSize() {
-    const selectedSize = toolbar.pageSizeSelect.value;
-    if (selectedSize === 'custom') {
-        const width = parseInt(toolbar.customWidthInput.value) || 800;
-        const height = parseInt(toolbar.customHeightInput.value) || 600;
-        return { width, height };
-    } else {
+    // -- Page Management --
+    function createNewPage() {
+        const { width, height } = getPageSize();
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = width;
+        pageCanvas.height = height;
+
+        return {
+            width,
+            height,
+            color: toolbar.pageColorPicker.value,
+            type: toolbar.pageTypeSelect.value,
+            x: 0, y: 0, // Recalculated later
+            strokes: [],
+            drawingCache: pageCanvas, // Off-screen canvas for committed drawings
+        };
+    }
+
+    function addPageToEnd() {
+        const newPage = createNewPage();
+        state.pages.push(newPage);
+        recalculatePagePositions();
+        requestRedraw();
+    }
+
+    function insertPageAfter(targetPage) {
+        if (!targetPage) return;
+        const newPage = createNewPage();
+        const targetIndex = state.pages.findIndex(p => p === targetPage);
+        if (targetIndex > -1) {
+            state.pages.splice(targetIndex + 1, 0, newPage);
+            recalculatePagePositions();
+            requestRedraw();
+        }
+    }
+
+    function tearPage(pageToTear) {
+        if (!pageToTear) return;
+        const index = state.pages.findIndex(p => p === pageToTear);
+        if (index > -1) {
+            state.pages.splice(index, 1);
+            recalculatePagePositions();
+            requestRedraw();
+        }
+    }
+
+    function recalculatePagePositions() {
+        let currentY = 20;
+        const centerX = (pagesCanvas.width / (2 * state.zoom)) - (state.pages[0]?.width / 2 || 0);
+        state.pages.forEach(page => {
+            page.y = currentY;
+            page.x = centerX;
+            currentY += page.height + 20; // 20px gap
+        });
+    }
+
+    function getPageSize() {
+        const selectedSize = toolbar.pageSizeSelect.value;
+        if (selectedSize === 'custom') {
+            return { 
+                width: parseInt(toolbar.customWidthInput.value) || 800, 
+                height: parseInt(toolbar.customHeightInput.value) || 600 
+            };
+        }
         return PAGE_SIZES[selectedSize];
     }
-}
 
-function createNewPage() {
-    const { width, height } = getPageSize();
-    return {
-        width,
-        height,
-        color: toolbar.pageColorPicker.value,
-        type: toolbar.pageTypeSelect.value,
-        x: (canvas.width / (2*zoom)) - (width/2),
-        y: 0, // This will be recalculated
-    };
-}
-
-function recalculatePagePositions() {
-    let currentY = 0;
-    pages.forEach(page => {
-        page.y = currentY;
-        currentY += page.height + 20; // 20px gap between pages
-    });
-}
-
-function addPageToEnd() {
-    const newPage = createNewPage();
-    pages.push(newPage);
-    recalculatePagePositions();
-    render();
-}
-
-function insertPageAfter(targetPage) {
-    if (!targetPage) return;
-    const newPage = createNewPage();
-    const targetIndex = pages.findIndex(p => p === targetPage);
-    if (targetIndex > -1) {
-        pages.splice(targetIndex + 1, 0, newPage);
-        recalculatePagePositions();
-        render();
-    }
-}
-
-function tearPage(pageToTear) {
-    if (!pageToTear) return;
-
-    const index = pages.findIndex(p => p === pageToTear);
-    if (index === -1) return;
-
-    // Simple visual effect: just fade it out
-    let opacity = 1;
-    const animation = setInterval(() => {
-        opacity -= 0.1;
-        if (opacity <= 0) {
-            clearInterval(animation);
-            pages.splice(index, 1);
-            recalculatePagePositions();
-            render();
-        } else {
-            render(); // Rerender to show the fade
-            // On the next frame, draw the fading page on top
-            ctx.save();
-            ctx.globalAlpha = opacity;
-            ctx.translate(panX, panY);
-            ctx.scale(zoom, zoom);
-            drawPage(pageToTear, true);
-            ctx.restore();
-        }
-    }, 30);
-}
-
-
-function drawPage(page, isFading = false) {
-    ctx.fillStyle = page.color;
-    if (hoveredPage === page && !isFading) {
-        ctx.strokeStyle = '#007bff';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(page.x - 2, page.y - 2, page.width + 4, page.height + 4);
-    }
-    ctx.fillRect(page.x, page.y, page.width, page.height);
-
-    switch (page.type) {
-        case 'lined':
-            drawLined(page);
-            break;
-        case 'dotted':
-            drawDotted(page);
-            break;
-        case 'grid':
-            drawGrid(page);
-            break;
-        case 'graph':
-            drawGraph(page);
-            break;
-    }
-}
-
-function drawLined(page) {
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 1;
-    for (let y = 30; y < page.height; y += 30) {
-        ctx.beginPath();
-        ctx.moveTo(page.x, page.y + y);
-        ctx.lineTo(page.x + page.width, page.y + y);
-        ctx.stroke();
-    }
-}
-
-function drawDotted(page) {
-    ctx.fillStyle = '#ccc';
-    for (let y = 30; y < page.height; y += 30) {
-        for (let x = 30; x < page.width; x += 30) {
-            ctx.beginPath();
-            ctx.arc(page.x + x, page.y + y, 2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-}
-
-function drawGrid(page) {
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 1;
-    for (let y = 30; y < page.height; y += 30) {
-        ctx.beginPath();
-        ctx.moveTo(page.x, page.y + y);
-        ctx.lineTo(page.x + page.width, page.y + y);
-        ctx.stroke();
-    }
-    for (let x = 30; x < page.width; x += 30) {
-        ctx.beginPath();
-        ctx.moveTo(page.x + x, page.y);
-        ctx.lineTo(page.x + x, page.y + page.height);
-        ctx.stroke();
-    }
-}
-
-function drawGraph(page) {
-    // Minor grid
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 0.5;
-    for (let y = 10; y < page.height; y += 10) {
-        ctx.beginPath();
-        ctx.moveTo(page.x, page.y + y);
-        ctx.lineTo(page.x + page.width, page.y + y);
-        ctx.stroke();
-    }
-    for (let x = 10; x < page.width; x += 10) {
-        ctx.beginPath();
-        ctx.moveTo(page.x + x, page.y);
-        ctx.lineTo(page.x + x, page.y + page.height);
-        ctx.stroke();
-    }
-
-    // Major grid
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 1;
-    for (let y = 50; y < page.height; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(page.x, page.y + y);
-        ctx.lineTo(page.x + page.width, page.y + y);
-        ctx.stroke();
-    }
-    for (let x = 50; x < page.width; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(page.x + x, page.y);
-        ctx.lineTo(page.x + x, page.y + page.height);
-        ctx.stroke();
-    }
-}
-
-function render() {
-    canvas.width = window.innerWidth - 200;
-    canvas.height = window.innerHeight;
-
-    ctx.save();
-    ctx.translate(panX, panY);
-    ctx.scale(zoom, zoom);
-
-    pages.forEach(page => drawPage(page));
-
-    ctx.restore();
-}
-
-let isPanning = false;
-let lastX = 0;
-let lastY = 0;
-
-function getMousePos(evt) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: (evt.clientX - rect.left - panX) / zoom,
-        y: (evt.clientY - rect.top - panY) / zoom
-    };
-}
-
-canvas.addEventListener('mousedown', (e) => {
-    isPanning = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
-        panX += dx;
-        panY += dy;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        render();
-    } else {
+    // -- Drawing Engine --
+    function startDrawing(e) {
+        if (state.activeTool === 'laser') return;
+        state.isDrawing = true;
         const pos = getMousePos(e);
-        const previouslyHovered = hoveredPage;
-        hoveredPage = null;
-        for (const page of pages) {
-            if (pos.x >= page.x && pos.x <= page.x + page.width &&
-                pos.y >= page.y && pos.y <= page.y + page.height) {
-                hoveredPage = page;
-                break;
-            }
-        }
-        if (previouslyHovered !== hoveredPage) {
-            render();
+        state.currentStroke = [{ 
+            x: pos.x, 
+            y: pos.y, 
+            pressure: e.pressure || 0.5 
+        }];
+    }
+
+    function draw(e) {
+        if (!state.isDrawing) return;
+        const pos = getMousePos(e);
+        state.currentStroke.push({ 
+            x: pos.x, 
+            y: pos.y, 
+            pressure: e.pressure || 0.5 
+        });
+        // Live drawing is handled by the render loop
+    }
+
+    function endDrawing() {
+        if (!state.isDrawing) return;
+        state.isDrawing = false;
+        commitStroke(state.currentStroke);
+        state.currentStroke = [];
+    }
+
+    function commitStroke(stroke) {
+        if (stroke.length < 2) return;
+        const page = findPageAt(stroke[0].x, stroke[0].y);
+        if (page) {
+            const pageStroke = {
+                points: stroke.map(p => ({ x: p.x - page.x, y: p.y - page.y, pressure: p.pressure })),
+                tool: { ...state[state.activeTool], tool: state.activeTool }
+            };
+            page.strokes.push(pageStroke);
+            // Redraw the drawing cache for that page
+            redrawPageCache(page);
+            requestRedraw();
         }
     }
-});
 
-canvas.addEventListener('mouseup', () => {
-    isPanning = false;
-});
+    function redrawPageCache(page) {
+        const ctx = page.drawingCache.getContext('2d');
+        ctx.clearRect(0, 0, page.width, page.height);
+        page.strokes.forEach(stroke => {
+            renderStroke(ctx, stroke.points, stroke.tool, false);
+        });
+    }
 
-canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (e.ctrlKey) {
-        const scaleAmount = 1.1;
-        const mouseX = e.clientX - canvas.offsetLeft;
-        const mouseY = e.clientY - canvas.offsetTop;
-        const worldX = (mouseX - panX) / zoom;
-        const worldY = (mouseY - panY) / zoom;
+    // -- Render Logic --
+    let redrawRequested = true;
+    function requestRedraw() { redrawRequested = true; }
 
-        if (e.deltaY < 0) {
-            zoom *= scaleAmount;
+    function render() {
+        lctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+
+        if (state.isDrawing && state.currentStroke.length > 0) {
+            renderStroke(lctx, state.currentStroke, { ...state[state.activeTool], tool: state.activeTool }, true);
+        }
+
+        if (state.activeTool === 'laser') {
+            lctx.fillStyle = 'red';
+            lctx.beginPath();
+            lctx.arc(state.laser.x, state.laser.y, 10, 0, 2 * Math.PI);
+            lctx.fill();
+        }
+
+        if (redrawRequested) {
+            pctx.clearRect(0, 0, pagesCanvas.width, pagesCanvas.height);
+            dctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+            pctx.save();
+            dctx.save();
+            pctx.translate(state.panX, state.panY);
+            dctx.translate(state.panX, state.panY);
+            pctx.scale(state.zoom, state.zoom);
+            dctx.scale(state.zoom, state.zoom);
+
+            state.pages.forEach(page => {
+                // Draw page background
+                pctx.fillStyle = page.color;
+                pctx.fillRect(page.x, page.y, page.width, page.height);
+                // Draw committed drawings
+                dctx.drawImage(page.drawingCache, page.x, page.y);
+            });
+
+            pctx.restore();
+            dctx.restore();
+            redrawRequested = false;
+        }
+        requestAnimationFrame(render);
+    }
+
+    function renderStroke(ctx, points, tool, isLive) {
+        if (points.length < 2) return;
+
+        ctx.save();
+        if (isLive) {
+            ctx.translate(state.panX, state.panY);
+            ctx.scale(state.zoom, state.zoom);
+        }
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = tool.color || '#000';
+        ctx.globalAlpha = tool.opacity || 1;
+
+        if (tool.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineWidth = tool.size;
         } else {
-            zoom /= scaleAmount;
+            ctx.globalCompositeOperation = 'source-over';
         }
 
-        panX = mouseX - worldX * zoom;
-        panY = mouseY - worldY * zoom;
-    } else {
-        panY -= e.deltaY;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
 
-        // Automatic page addition when scrolling near the end
-        if (pages.length > 0) {
-            const lastPage = pages[pages.length - 1];
-            const lastPageBottom = (lastPage.y + lastPage.height) * zoom + panY;
-            if (lastPageBottom < canvas.height + 200) { // 200px threshold
-                addPageToEnd();
+        for (let i = 1; i < points.length; i++) {
+            if (tool.style === 'brush' || tool.style === 'marker') {
+                ctx.lineWidth = tool.thickness * points[i].pressure;
             }
+            else {
+                ctx.lineWidth = tool.thickness;
+            }
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // -- Event Listeners --
+    function setupEventListeners() {
+        // Tool selection
+        toolbar.penToolBtn.addEventListener('click', () => switchTool('pen'));
+        toolbar.eraserToolBtn.addEventListener('click', () => switchTool('eraser'));
+        toolbar.laserToolBtn.addEventListener('click', () => switchTool('laser'));
+
+        // Page controls
+        toolbar.addPageBtn.addEventListener('click', addPageToEnd);
+        toolbar.insertPageBtn.addEventListener('click', () => insertPageAfter(state.hoveredPage));
+        toolbar.tearPageBtn.addEventListener('click', () => tearPage(state.hoveredPage));
+
+        // Tool options
+        toolbar.penColorPicker.onchange = (e) => state.pen.color = e.target.value;
+        toolbar.penStyleSelect.onchange = (e) => state.pen.style = e.target.value;
+        toolbar.penThicknessSlider.oninput = (e) => state.pen.thickness = e.target.value;
+        toolbar.penOpacitySlider.oninput = (e) => state.pen.opacity = e.target.value;
+        toolbar.eraserSizeSlider.oninput = (e) => state.eraser.size = e.target.value;
+
+        // Canvas events
+        liveCanvas.addEventListener('pointerdown', handlePointerDown);
+        liveCanvas.addEventListener('pointermove', handlePointerMove);
+        liveCanvas.addEventListener('pointerup', handlePointerUp);
+        liveCanvas.addEventListener('pointerleave', handlePointerUp); // End drawing if pointer leaves
+        window.addEventListener('resize', resizeCanvases);
+    }
+
+    function handlePointerDown(e) {
+        if (e.button === 1) { // Middle mouse button for panning
+            state.isPanning = true;
+            state.lastX = e.clientX;
+            state.lastY = e.clientY;
+        } else {
+            startDrawing(e);
         }
     }
-    render();
-});
 
-toolbar.addPageBtn.addEventListener('click', addPageToEnd);
-toolbar.insertPageBtn.addEventListener('click', () => insertPageAfter(hoveredPage));
-toolbar.tearPageBtn.addEventListener('click', () => tearPage(hoveredPage));
-
-toolbar.pageSizeSelect.addEventListener('change', () => {
-    if (toolbar.pageSizeSelect.value === 'custom') {
-        toolbar.customSizeInputs.style.display = 'block';
-    } else {
-        toolbar.customSizeInputs.style.display = 'none';
+    function handlePointerMove(e) {
+        if (state.isPanning) {
+            const dx = e.clientX - state.lastX;
+            const dy = e.clientY - state.lastY;
+            state.panX += dx;
+            state.panY += dy;
+            state.lastX = e.clientX;
+            state.lastY = e.clientY;
+            requestRedraw();
+        } else if (state.isDrawing) {
+            draw(e);
+        } else if (state.activeTool === 'laser') {
+            const pos = getMousePos(e, true);
+            state.laser.x = pos.x;
+            state.laser.y = pos.y;
+        }
     }
+
+    function handlePointerUp(e) {
+        if (state.isPanning) {
+            state.isPanning = false;
+        } else if (state.isDrawing) {
+            endDrawing(e);
+        }
+    }
+
+    function switchTool(tool) {
+        state.activeTool = tool;
+        toolbar.penToolBtn.classList.toggle('active', tool === 'pen');
+        toolbar.eraserToolBtn.classList.toggle('active', tool === 'eraser');
+        toolbar.laserToolBtn.classList.toggle('active', tool === 'laser');
+        toolbar.penOptions.classList.toggle('active', tool === 'pen');
+        toolbar.eraserOptions.classList.toggle('active', tool === 'eraser');
+    }
+
+    // -- Utility Functions --
+    function getMousePos(evt, onLiveCanvas = false) {
+        const rect = liveCanvas.getBoundingClientRect();
+        if (onLiveCanvas) {
+            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+        }
+        return {
+            x: (evt.clientX - rect.left - state.panX) / state.zoom,
+            y: (evt.clientY - rect.top - state.panY) / state.zoom
+        };
+    }
+
+    function findPageAt(worldX, worldY) {
+        return state.pages.find(p => 
+            worldX >= p.x && worldX <= p.x + p.width &&
+            worldY >= p.y && worldY <= p.y + p.height
+        );
+    }
+
+    function resizeCanvases() {
+        const container = document.getElementById('canvas-container');
+        const { width, height } = container.getBoundingClientRect();
+        pagesCanvas.width = drawingCanvas.width = liveCanvas.width = width;
+        pagesCanvas.height = drawingCanvas.height = liveCanvas.height = height;
+        recalculatePagePositions();
+        requestRedraw();
+    }
+
+    // -- Initialization --
+    function init() {
+        resizeCanvases();
+        setupEventListeners();
+        addPageToEnd();
+        render();
+    }
+
+    init();
 });
-
-window.addEventListener('resize', render);
-
-// Initial setup
-addPageToEnd();

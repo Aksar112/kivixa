@@ -7,38 +7,94 @@
 </head>
 <body>
     <div id="toolbar">
-        <button id="add-page-btn">Add Page at End</button>
-        <button id="insert-page-btn">Insert Page After</button>
-        <button id="tear-page-btn">Tear Page</button>
-        <div class="control-group">
-            <label for="page-size-select">Page Size:</label>
-            <select id="page-size-select">
-                <option value="a4">A4</option>
-                <option value="a3">A3</option>
-                <option value="letter">Letter</option>
-                <option value="custom">Custom</option>
-            </select>
+        <div class="tool-section">
+            <h3>Pages</h3>
+            <button id="add-page-btn">Add Page at End</button>
+            <button id="insert-page-btn">Insert Page After</button>
+            <button id="tear-page-btn">Tear Page</button>
+            <div class="control-group">
+                <label for="page-size-select">Page Size:</label>
+                <select id="page-size-select">
+                    <option value="a4">A4</option>
+                    <option value="a3">A3</option>
+                    <option value="letter">Letter</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div id="custom-size-inputs" style="display: none;">
+                <input type="number" id="custom-width-input" placeholder="Width (px)">
+                <input type="number" id="custom-height-input" placeholder="Height (px)">
+            </div>
+            <div class="control-group">
+                <label for="page-type-select">Page Type:</label>
+                <select id="page-type-select">
+                    <option value="blank">Blank</option>
+                    <option value="lined">Lined</option>
+                    <option value="dotted">Dotted</option>
+                    <option value="grid">Grid</option>
+                    <option value="graph">Graph</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="page-color-picker">Page Color:</label>
+                <input type="color" id="page-color-picker" value="#f0f0f0">
+            </div>
         </div>
-        <div id="custom-size-inputs" style="display: none;">
-            <input type="number" id="custom-width-input" placeholder="Width (px)">
-            <input type="number" id="custom-height-input" placeholder="Height (px)">
+
+        <div class="tool-section">
+            <h3>Tools</h3>
+            <div id="tool-selector">
+                <button id="pen-tool-btn" class="tool-btn active">Pen</button>
+                <button id="eraser-tool-btn" class="tool-btn">Eraser</button>
+                <button id="laser-tool-btn" class="tool-btn">Laser</button>
+            </div>
         </div>
-        <div class="control-group">
-            <label for="page-type-select">Page Type:</label>
-            <select id="page-type-select">
-                <option value="blank">Blank</option>
-                <option value="lined">Lined</option>
-                <option value="dotted">Dotted</option>
-                <option value="grid">Grid</option>
-                <option value="graph">Graph</option>
-            </select>
+
+        <div id="pen-options" class="tool-options active">
+            <h4>Pen Options</h4>
+            <div class="control-group">
+                <label for="pen-color-picker">Pen Color:</label>
+                <input type="color" id="pen-color-picker" value="#000000">
+            </div>
+            <div class="control-group">
+                <label for="pen-style-select">Pen Style:</label>
+                <select id="pen-style-select">
+                    <option value="fine-liner">Fine Liner</option>
+                    <option value="brush">Brush</option>
+                    <option value="marker">Marker</option>
+                    <option value="calligraphy">Calligraphy</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="pen-thickness-slider">Thickness:</label>
+                <input type="range" id="pen-thickness-slider" min="1" max="50" value="5">
+            </div>
+            <div class="control-group">
+                <label for="pen-opacity-slider">Opacity:</label>
+                <input type="range" id="pen-opacity-slider" min="0" max="1" step="0.1" value="1">
+            </div>
         </div>
-        <div class="control-group">
-            <label for="page-color-picker">Page Color:</label>
-            <input type="color" id="page-color-picker" value="#f0f0f0">
+
+        <div id="eraser-options" class="tool-options">
+            <h4>Eraser Options</h4>
+            <div class="control-group">
+                <label for="eraser-size-slider">Size:</label>
+                <input type="range" id="eraser-size-slider" min="1" max="100" value="20">
+            </div>
+            <div class="control-group">
+                <label for="eraser-style-select">Style:</label>
+                <select id="eraser-style-select">
+                    <option value="pixel">Pixel</option>
+                    <option value="stroke">Stroke</option>
+                </select>
+            </div>
         </div>
     </div>
-    <canvas id="canvas"></canvas>
+    <div id="canvas-container">
+        <canvas id="pages-canvas"></canvas>
+        <canvas id="drawing-canvas"></canvas>
+        <canvas id="live-canvas"></canvas>
+    </div>
     <script src="renderer.js"></script>
 </body>
 </html>
