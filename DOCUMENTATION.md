@@ -1,6 +1,6 @@
 # Welcome to InkFlow Studio
 
-Welcome! InkFlow Studio is a powerful digital notebook designed for freeform note-taking, sketching, and planning. This guide will walk you through all of its features, from basic navigation to advanced tools.
+Welcome! Kivixa is a powerful digital notebook designed for freeform note-taking, sketching, and planning. This guide will walk you through all of its features, from basic navigation to advanced tools.
 
 ## 1. Installation
 
