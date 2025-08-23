@@ -5,7 +5,24 @@ const path = require('path');
 const db = require('./database/database.js');
 
 let mainWindow;
+let splashWindow;
 function createWindow() {
+    splashWindow = new BrowserWindow({
+        width: 400,
+        height: 300,
+        frame: false,
+        alwaysOnTop: true,
+        transparent: true,
+        resizable: false,
+        show: true,
+        icon: path.join(__dirname, 'build/icon.ico'),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        }
+    });
+    splashWindow.loadFile('renderer/splash.html');
+
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -18,7 +35,14 @@ function createWindow() {
         },
         frame: false,
         titleBarStyle: 'hidden',
-        backgroundColor: '#121212'
+        backgroundColor: '#121212',
+        show: false
+    });
+    mainWindow.once('ready-to-show', () => {
+        setTimeout(() => {
+            splashWindow.close();
+            mainWindow.show();
+        }, 1200); // Show splash for at least 1.2s
     });
     mainWindow.loadFile('renderer/index.html');
 }
