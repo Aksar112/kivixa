@@ -1,10 +1,10 @@
-# Welcome to InkFlow Studio
+# Welcome to Kivixa
 
 Welcome! Kivixa is a powerful digital notebook designed for freeform note-taking, sketching, and planning. This guide will walk you through all of its features, from basic navigation to advanced tools.
 
 ## 1. Installation
 
-To install InkFlow Studio, simply double-click the `.exe` installer file you downloaded and follow the on-screen instructions. Once finished, you can launch the application from your Desktop or Start Menu.
+To install Kivixa, simply double-click the `.exe` installer file you downloaded and follow the on-screen instructions. Once finished, you can launch the application from your Desktop or Start Menu.
 
 ## 2. Getting Started: The Interface
 
@@ -16,7 +16,7 @@ The application is divided into three main areas:
 
 ## 3. Managing Your Notes & Folders
 
-InkFlow Studio helps you stay organized with a simple file-and-folder system.
+Kivixa helps you stay organized with a simple file-and-folder system.
 
 *   **Creating a Folder:** Click the "New Folder" button in the top-left to create a new folder in your list.
 *   **Creating a Note:** Select a folder and click the "New Note" button. A new, blank note will be created and opened on the canvas.
@@ -82,7 +82,7 @@ For precise drawings, use the Geometry tools. When a guide is active, select the
 *   **Automatic Saving:** All your work is saved automatically to your local device! After a second of inactivity, your latest changes are written to the database. You never have to worry about clicking a "Save" button.
 *   **Exporting to PDF:**
     1.  Click the **Export to PDF** button in the toolbar.
-    2.  InkFlow Studio will generate a high-quality PDF of your entire notebook.
+    2.  Kivixa will generate a high-quality PDF of your entire notebook.
     3.  Your browser will prompt you to save the `notebook.pdf` file.
 
 ## 7. Tips for Efficient Note-Taking
