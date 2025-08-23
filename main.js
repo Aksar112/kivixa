@@ -181,6 +181,18 @@ ipcMain.handle('delete-note', async (event, id) => {
     });
 });
 
+ipcMain.handle('update-note-content', async (event, { id, content }) => {
+    return new Promise((resolve, reject) => {
+        const now = new Date().toISOString();
+        db.run('UPDATE notes SET content = ?, updated_at = ? WHERE id = ?', [content, now, id], function(err) {
+            if (err) {
+                reject(err);
+            }
+            resolve({ id });
+        });
+    });
+});
+
 // Search IPC
 
 // Search IPC
