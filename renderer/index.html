@@ -5,24 +5,47 @@
     <title>Kivixa</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <header class="title-bar">
-            <div class="title">Kivixa</div>
-            <div class="controls">
-                <div class="control-button" id="minimize-btn">-</div>
-                <div class="control-button" id="maximize-btn">+</div>
-                <div class="control-button" id="close-btn">x</div>
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <input type="text" id="search-input" placeholder="Search...">
+                <button id="add-folder-btn"><i class="fas fa-plus"></i></button>
             </div>
-        </header>
-        <main class="content">
-            <h1>Welcome to Kivixa</h1>
-            <p>A minimalist Electron application.</p>
-            <div id="drag-drop-area" class="drag-drop-area">
-                <p>Drag & Drop Files Here</p>
+            <div id="folder-tree" class="folder-tree"></div>
+            <div class="recent-notes">
+                <h3>Recent Notes</h3>
+                <ul id="recent-notes-list"></ul>
             </div>
-            <div id="data-container"></div>
+        </aside>
+        <main class="main-content">
+            <div class="note-list-container">
+                <div class="note-list-header">
+                    <h2 id="current-folder-name">Notes</h2>
+                    <button id="add-note-btn"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="note-list" class="note-list"></div>
+            </div>
+            <div class="note-editor-container">
+                <div id="note-editor" class="note-editor" style="display: none;">
+                    <input type="text" id="note-title-input" placeholder="Note Title">
+                    <div class="note-tags">
+                        <input type="text" id="tag-input" placeholder="Add a tag...">
+                        <div id="tags-container"></div>
+                    </div>
+                    <textarea id="note-content-input" placeholder="Start writing..."></textarea>
+                    <div class="note-actions">
+                        <button id="save-note-btn">Save</button>
+                        <button id="delete-note-btn">Delete</button>
+                    </div>
+                </div>
+                <div id="welcome-screen" class="welcome-screen">
+                    <h1>Select a note to start editing</h1>
+                    <p>Or create a new one</p>
+                </div>
+            </div>
         </main>
     </div>
     <script src="renderer.js"></script>
