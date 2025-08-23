@@ -2,6 +2,28 @@ import { jsPDF } from "jspdf";
 import showdown from 'showdown';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Update Message UI ---
+    const updateDiv = document.getElementById('update-message');
+    let restartBtn = null;
+    window.electron?.updater?.onUpdateStatus?.((msg) => {
+        if (!updateDiv) return;
+        updateDiv.style.display = 'block';
+        updateDiv.innerHTML = '';
+        if (msg.includes('Update downloaded. Restart to install.')) {
+            updateDiv.textContent = msg + ' ';
+            restartBtn = document.createElement('button');
+            restartBtn.textContent = 'Restart & Install';
+            restartBtn.style.marginLeft = '8px';
+            restartBtn.onclick = () => window.electron.updater.restartApp();
+            updateDiv.appendChild(restartBtn);
+        } else if (msg.includes('Error during update:')) {
+            // Extract error message and show link
+            const parts = msg.split('. Please report at ');
+            updateDiv.innerHTML = `<span>${parts[0]}.</span> <a href="${parts[1]}" target="_blank" style="color:#4af;">Report Issue</a>`;
+        } else {
+            updateDiv.textContent = msg;
+        }
+    });
     // -- Canvas and Context Setup --
     const canvases = { pages: document.getElementById('pages-canvas'), drawing: document.getElementById('drawing-canvas'), live: document.getElementById('live-canvas'), tool: document.getElementById('tool-overlay-canvas') };
     const ctx = { p: canvases.pages.getContext('2d'), d: canvases.drawing.getContext('2d'), l: canvases.live.getContext('2d'), t: canvases.tool.getContext('2d') };
