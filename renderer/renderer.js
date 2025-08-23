@@ -14,17 +14,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!updateDiv) return;
         updateDiv.style.display = 'block';
         updateDiv.innerHTML = '';
+        updateDiv.style.background = msg.toLowerCase().includes('error') ? '#c0392b' : '#222';
+        updateDiv.style.color = msg.toLowerCase().includes('error') ? '#fff' : '#fff';
+        updateDiv.style.fontWeight = msg.toLowerCase().includes('error') ? 'bold' : 'normal';
+        updateDiv.style.border = msg.toLowerCase().includes('error') ? '2px solid #e74c3c' : 'none';
+        updateDiv.style.boxShadow = msg.toLowerCase().includes('error') ? '0 2px 8px #e74c3c44' : 'none';
+        updateDiv.style.zIndex = 1000;
         if (msg.includes('Update downloaded. Restart to install.')) {
             updateDiv.textContent = msg + ' ';
             restartBtn = document.createElement('button');
             restartBtn.textContent = 'Restart & Install';
             restartBtn.style.marginLeft = '8px';
+            restartBtn.style.background = '#27ae60';
+            restartBtn.style.color = '#fff';
+            restartBtn.style.border = 'none';
+            restartBtn.style.padding = '6px 14px';
+            restartBtn.style.borderRadius = '4px';
+            restartBtn.style.cursor = 'pointer';
             restartBtn.onclick = () => window.electron.updater.restartApp();
             updateDiv.appendChild(restartBtn);
-        } else if (msg.includes('Error during update:')) {
+        } else if (msg.toLowerCase().includes('error')) {
             // Extract error message and show link
-            const parts = msg.split('. Please report at ');
-            updateDiv.innerHTML = `<span>${parts[0]}.</span> <a href="${parts[1]}" target="_blank" style="color:#4af;">Report Issue</a>`;
+            let parts = msg.split('. Please report at ');
+            let errorMsg = parts[0] + '.';
+            let reportLink = parts[1] ? `<a href="${parts[1]}" target="_blank" style="color:#fff;text-decoration:underline;margin-left:10px;">Report Issue</a>` : '';
+            updateDiv.innerHTML = `<span>${errorMsg}</span> ${reportLink}`;
         } else {
             updateDiv.textContent = msg;
         }
@@ -100,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (err.message && err.message.includes('EIO')) {
                 msg = 'File system error: I/O error occurred.';
             }
-            tabContents.help.innerHTML = `<div style="color:#c00;">${msg}</div>`;
+            tabContents.help.innerHTML = `<div style=\"color:#fff;background:#c0392b;padding:10px 16px;border-radius:4px;font-weight:bold;\">${msg}</div>`;
         }
     }
 
@@ -195,7 +209,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (err.message && err.message.includes('EIO')) {
                 msg = 'File system error: I/O error occurred.';
             }
-            alert(msg);
+            // Show error in a visible, non-blocking way
+            if (updateDiv) {
+                updateDiv.style.display = 'block';
+                updateDiv.style.background = '#c0392b';
+                updateDiv.style.color = '#fff';
+                updateDiv.style.fontWeight = 'bold';
+                updateDiv.style.border = '2px solid #e74c3c';
+                updateDiv.style.boxShadow = '0 2px 8px #e74c3c44';
+                updateDiv.style.zIndex = 1000;
+                updateDiv.textContent = msg;
+            }
         }
     }
 

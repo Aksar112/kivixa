@@ -1,5 +1,23 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const log = require('electron-log');
+
+// Configure electron-log
+log.transports.file.level = 'info';
+log.transports.file.resolvePath = () => require('path').join(app.getPath('userData'), 'logs/main.log');
+
+// Global error/crash handling
+process.on('uncaughtException', (error) => {
+    log.error('Uncaught Exception:', error);
+    dialog.showErrorBox('A critical error occurred',
+        'An unexpected error has occurred and has been logged. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (error && error.stack ? error.stack : error));
+    app.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+    log.error('Unhandled Rejection:', reason);
+    dialog.showErrorBox('A critical error occurred',
+        'An unexpected error has occurred and has been logged. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (reason && reason.stack ? reason.stack : reason));
+    app.exit(1);
+});
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const db = require('./database/database.js');
@@ -7,44 +25,55 @@ const db = require('./database/database.js');
 let mainWindow;
 let splashWindow;
 function createWindow() {
-    splashWindow = new BrowserWindow({
-        width: 400,
-        height: 300,
-        frame: false,
-        alwaysOnTop: true,
-        transparent: true,
-        resizable: false,
-        show: true,
-        icon: path.join(__dirname, 'build/icon.ico'),
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true
-        }
-    });
-    splashWindow.loadFile('renderer/splash.html');
+    try {
+        splashWindow = new BrowserWindow({
+            width: 400,
+            height: 300,
+            frame: false,
+            alwaysOnTop: true,
+            transparent: true,
+            resizable: false,
+            show: true,
+            icon: path.join(__dirname, 'build/icon.ico'),
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+        splashWindow.loadFile('renderer/splash.html').catch(err => {
+            log.error('Splash load error:', err);
+        });
 
-    mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        icon: path.join(__dirname, 'build/icon.ico'),
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            enableRemoteModule: false,
-            nodeIntegration: false
-        },
-        frame: false,
-        titleBarStyle: 'hidden',
-        backgroundColor: '#121212',
-        show: false
-    });
-    mainWindow.once('ready-to-show', () => {
-        setTimeout(() => {
-            splashWindow.close();
-            mainWindow.show();
-        }, 1200); // Show splash for at least 1.2s
-    });
-    mainWindow.loadFile('renderer/index.html');
+        mainWindow = new BrowserWindow({
+            width: 1200,
+            height: 800,
+            icon: path.join(__dirname, 'build/icon.ico'),
+            webPreferences: {
+                preload: path.join(__dirname, 'preload.js'),
+                contextIsolation: true,
+                enableRemoteModule: false,
+                nodeIntegration: false
+            },
+            frame: false,
+            titleBarStyle: 'hidden',
+            backgroundColor: '#121212',
+            show: false
+        });
+        mainWindow.once('ready-to-show', () => {
+            setTimeout(() => {
+                splashWindow.close();
+                mainWindow.show();
+            }, 1200); // Show splash for at least 1.2s
+        });
+        mainWindow.loadFile('renderer/index.html').catch(err => {
+            log.error('Main window load error:', err);
+            dialog.showErrorBox('Error loading main window', 'An error occurred while loading the main window. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (err && err.stack ? err.stack : err));
+        });
+    } catch (err) {
+        log.error('Error in createWindow:', err);
+        dialog.showErrorBox('Critical Error', 'A critical error occurred while starting the app. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (err && err.stack ? err.stack : err));
+        app.exit(1);
+    }
 }
 
 
