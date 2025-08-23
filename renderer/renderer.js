@@ -1,250 +1,227 @@
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-window.addEventListener('DOMContentLoaded', () => {
-    const folderTree = document.getElementById('folder-tree');
-    const addFolderBtn = document.getElementById('add-folder-btn');
-    const noteList = document.getElementById('note-list');
-    const addNoteBtn = document.getElementById('add-note-btn');
-    const noteEditor = document.getElementById('note-editor');
-    const noteTitleInput = document.getElementById('note-title-input');
-    const noteContentInput = document.getElementById('note-content-input');
-    const saveNoteBtn = document.getElementById('save-note-btn');
-    const deleteNoteBtn = document.getElementById('delete-note-btn');
-    const searchInput = document.getElementById('search-input');
-    const recentNotesList = document.getElementById('recent-notes-list');
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const currentFolderName = document.getElementById('current-folder-name');
-    const tagInput = document.getElementById('tag-input');
-    const tagsContainer = document.getElementById('tags-container');
+const toolbar = {
+    addPageBtn: document.getElementById('add-page-btn'),
+    pageSizeSelect: document.getElementById('page-size-select'),
+    customSizeInputs: document.getElementById('custom-size-inputs'),
+    customWidthInput: document.getElementById('custom-width-input'),
+    customHeightInput: document.getElementById('custom-height-input'),
+    pageTypeSelect: document.getElementById('page-type-select'),
+    pageColorPicker: document.getElementById('page-color-picker'),
+};
 
-    let currentFolderId = null;
-    let currentNoteId = null;
+let pages = [];
+let panX = 0;
+let panY = 0;
+let zoom = 1;
 
-    function setActiveItem(list, id) {
-        [...list.children].forEach(item => {
-            item.classList.toggle('active', item.dataset.id == id);
-        });
+const PAGE_SIZES = {
+    a4: { width: 794, height: 1123 },
+    a3: { width: 1123, height: 1587 },
+    letter: { width: 816, height: 1056 },
+};
+
+function getPageSize() {
+    const selectedSize = toolbar.pageSizeSelect.value;
+    if (selectedSize === 'custom') {
+        const width = parseInt(toolbar.customWidthInput.value) || 800;
+        const height = parseInt(toolbar.customHeightInput.value) || 600;
+        return { width, height };
+    } else {
+        return PAGE_SIZES[selectedSize];
     }
+}
 
-    async function loadFolders() {
-        const folders = await window.electronAPI.getFolders();
-        folderTree.innerHTML = '';
-        folders.forEach(folder => {
-            const folderEl = document.createElement('div');
-            folderEl.className = 'folder-item';
-            folderEl.textContent = folder.name;
-            folderEl.dataset.id = folder.id;
-            folderTree.appendChild(folderEl);
-        });
-        setActiveItem(folderTree, currentFolderId);
+function addPage() {
+    const { width, height } = getPageSize();
+    const newPage = {
+        width,
+        height,
+        color: toolbar.pageColorPicker.value,
+        type: toolbar.pageTypeSelect.value,
+        x: 0,
+        y: pages.length > 0 ? pages[pages.length - 1].y + pages[pages.length - 1].height + 20 : 0,
+    };
+    pages.push(newPage);
+    render();
+}
+
+function drawPage(page) {
+    ctx.fillStyle = page.color;
+    ctx.fillRect(page.x, page.y, page.width, page.height);
+
+    switch (page.type) {
+        case 'lined':
+            drawLined(page);
+            break;
+        case 'dotted':
+            drawDotted(page);
+            break;
+        case 'grid':
+            drawGrid(page);
+            break;
+        case 'graph':
+            drawGraph(page);
+            break;
     }
+}
 
-    async function loadNotes(folderId) {
-        currentFolderId = folderId;
-        const notes = await window.electronAPI.getNotes(folderId);
-        noteList.innerHTML = '';
-        notes.forEach(note => {
-            const noteEl = document.createElement('div');
-            noteEl.className = 'note-item';
-            noteEl.dataset.id = note.id;
-            noteEl.draggable = true;
-            noteEl.innerHTML = `<h4>${note.title}</h4><p>${note.preview}</p>`;
-            noteList.appendChild(noteEl);
-        });
-        const folder = folderId ? await window.electronAPI.getFolder(folderId) : null;
-        currentFolderName.textContent = folder ? folder.name : 'All Notes';
-        setActiveItem(folderTree, folderId);
-        setActiveItem(noteList, currentNoteId);
+function drawLined(page) {
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    for (let y = 30; y < page.height; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(page.x, page.y + y);
+        ctx.lineTo(page.x + page.width, page.y + y);
+        ctx.stroke();
     }
+}
 
-    async function loadRecentNotes() {
-        const notes = await window.electronAPI.getRecentNotes();
-        recentNotesList.innerHTML = '';
-        notes.forEach(note => {
-            const noteEl = document.createElement('li');
-            noteEl.textContent = note.title;
-            noteEl.dataset.id = note.id;
-            recentNotesList.appendChild(noteEl);
-        });
-    }
-
-    async function loadNoteTags(noteId) {
-        const tags = await window.electronAPI.getNoteTags(noteId);
-        tagsContainer.innerHTML = '';
-        tags.forEach(tag => {
-            const tagEl = document.createElement('div');
-            tagEl.className = 'tag-item';
-            tagEl.textContent = tag.name;
-            tagEl.dataset.id = tag.id;
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-tag-btn';
-            removeBtn.innerHTML = '&times;';
-            tagEl.appendChild(removeBtn);
-            tagsContainer.appendChild(tagEl);
-        });
-    }
-
-    async function openNote(noteId) {
-        currentNoteId = noteId;
-        const note = await window.electronAPI.getNote(noteId);
-        if (note) {
-            noteTitleInput.value = note.title;
-            noteContentInput.value = note.content;
-            noteEditor.style.display = 'flex';
-            welcomeScreen.style.display = 'none';
-            setActiveItem(noteList, currentNoteId);
-            loadNoteTags(currentNoteId);
-        } else {
-            showWelcomeScreen();
+function drawDotted(page) {
+    ctx.fillStyle = '#ccc';
+    for (let y = 30; y < page.height; y += 30) {
+        for (let x = 30; x < page.width; x += 30) {
+            ctx.beginPath();
+            ctx.arc(page.x + x, page.y + y, 2, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
+}
 
-    function showWelcomeScreen() {
-        noteEditor.style.display = 'none';
-        welcomeScreen.style.display = 'flex';
-        currentNoteId = null;
+function drawGrid(page) {
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    for (let y = 30; y < page.height; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(page.x, page.y + y);
+        ctx.lineTo(page.x + page.width, page.y + y);
+        ctx.stroke();
+    }
+    for (let x = 30; x < page.width; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(page.x + x, page.y);
+        ctx.lineTo(page.x + x, page.y + page.height);
+        ctx.stroke();
+    }
+}
+
+function drawGraph(page) {
+    // Minor grid
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 0.5;
+    for (let y = 10; y < page.height; y += 10) {
+        ctx.beginPath();
+        ctx.moveTo(page.x, page.y + y);
+        ctx.lineTo(page.x + page.width, page.y + y);
+        ctx.stroke();
+    }
+    for (let x = 10; x < page.width; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(page.x + x, page.y);
+        ctx.lineTo(page.x + x, page.y + page.height);
+        ctx.stroke();
     }
 
-    addFolderBtn.addEventListener('click', async () => {
-        const name = prompt('Enter folder name:');
-        if (name) {
-            await window.electronAPI.addFolder({ name, parent_id: null });
-            loadFolders();
-        }
-    });
+    // Major grid
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    for (let y = 50; y < page.height; y += 50) {
+        ctx.beginPath();
+        ctx.moveTo(page.x, page.y + y);
+        ctx.lineTo(page.x + page.width, page.y + y);
+        ctx.stroke();
+    }
+    for (let x = 50; x < page.width; x += 50) {
+        ctx.beginPath();
+        ctx.moveTo(page.x + x, page.y);
+        ctx.lineTo(page.x + x, page.y + page.height);
+        ctx.stroke();
+    }
+}
 
-    folderTree.addEventListener('click', (e) => {
-        if (e.target.classList.contains('folder-item')) {
-            const folderId = e.target.dataset.id;
-            loadNotes(folderId);
-            showWelcomeScreen();
-        }
-    });
+function render() {
+    canvas.width = window.innerWidth - 200;
+    canvas.height = window.innerHeight;
 
-    addNoteBtn.addEventListener('click', async () => {
-        if (currentFolderId) {
-            const newNote = await window.electronAPI.addNote({ title: 'Untitled Note', content: '', folder_id: currentFolderId });
-            await loadNotes(currentFolderId);
-            openNote(newNote.id);
-        } else {
-            alert('Please select a folder first.');
-        }
-    });
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
 
-    noteList.addEventListener('click', (e) => {
-        const noteItem = e.target.closest('.note-item');
-        if (noteItem) {
-            openNote(noteItem.dataset.id);
-        }
-    });
+    pages.forEach(drawPage);
 
-    recentNotesList.addEventListener('click', (e) => {
-        if (e.target.tagName === 'LI') {
-            openNote(e.target.dataset.id);
-        }
-    });
+    ctx.restore();
+}
 
-    saveNoteBtn.addEventListener('click', async () => {
-        if (currentNoteId) {
-            await window.electronAPI.updateNote({
-                id: currentNoteId,
-                title: noteTitleInput.value,
-                content: noteContentInput.value
-            });
-            await loadNotes(currentFolderId);
-            await loadRecentNotes();
-        }
-    });
+let isPanning = false;
+let lastX = 0;
+let lastY = 0;
 
-    deleteNoteBtn.addEventListener('click', async () => {
-        if (currentNoteId && confirm('Are you sure you want to delete this note?')) {
-            await window.electronAPI.deleteNote(currentNoteId);
-            await loadNotes(currentFolderId);
-            await loadRecentNotes();
-            showWelcomeScreen();
-        }
-    });
-
-    searchInput.addEventListener('input', async (e) => {
-        const query = e.target.value;
-        if (query.length > 2) {
-            const notes = await window.electronAPI.searchAll(query);
-            noteList.innerHTML = '';
-            notes.forEach(note => {
-                const noteEl = document.createElement('div');
-                noteEl.className = 'note-item';
-                noteEl.dataset.id = note.id;
-                noteEl.innerHTML = `<h4>${note.title}</h4><p>${note.preview}</p>`;
-                noteList.appendChild(noteEl);
-            });
-            currentFolderName.textContent = `Search Results for "${query}"`;
-        } else if (query.length === 0) {
-            loadNotes(currentFolderId);
-        }
-    });
-
-    tagInput.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter' && currentNoteId) {
-            const tagName = tagInput.value.trim();
-            if (tagName) {
-                const tag = await window.electronAPI.addTag(tagName);
-                await window.electronAPI.addNoteTag({ note_id: currentNoteId, tag_id: tag.id });
-                tagInput.value = '';
-                loadNoteTags(currentNoteId);
-            }
-        }
-    });
-
-    tagsContainer.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('remove-tag-btn')) {
-            const tagId = e.target.parentElement.dataset.id;
-            await window.electronAPI.removeNoteTag({ note_id: currentNoteId, tag_id: tagId });
-            loadNoteTags(currentNoteId);
-        }
-    });
-
-    // Drag and Drop
-    noteList.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains('note-item')) {
-            e.dataTransfer.setData('text/plain', e.target.dataset.id);
-        }
-    });
-
-    folderTree.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const folderItem = e.target.closest('.folder-item');
-        if(folderItem) {
-            folderItem.style.backgroundColor = 'var(--tertiary-bg)'; // Highlight
-        }
-    });
-
-    folderTree.addEventListener('dragleave', (e) => {
-        const folderItem = e.target.closest('.folder-item');
-        if(folderItem) {
-            folderItem.style.backgroundColor = ''; // Remove highlight
-        }
-    });
-
-    folderTree.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        const folderItem = e.target.closest('.folder-item');
-        if(folderItem) {
-            folderItem.style.backgroundColor = ''; // Remove highlight
-            const noteId = e.dataTransfer.getData('text/plain');
-            const folderId = folderItem.dataset.id;
-            if (noteId && folderId) {
-                await window.electronAPI.updateNote({ id: noteId, folder_id: folderId });
-                // Find the note and remove it from the list
-                const noteElement = noteList.querySelector(`[data-id="${noteId}"]`);
-                if (noteElement) {
-                    noteElement.remove();
-                }
-            }
-        }
-    });
-
-    // Initial Load
-    loadFolders();
-    loadNotes(null);
-    loadRecentNotes();
-    showWelcomeScreen();
+canvas.addEventListener('mousedown', (e) => {
+    isPanning = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
 });
+
+canvas.addEventListener('mousemove', (e) => {
+    if (isPanning) {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        panX += dx;
+        panY += dy;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        render();
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    isPanning = false;
+});
+
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey) {
+        const scaleAmount = 1.1;
+        const mouseX = e.clientX - canvas.offsetLeft;
+        const mouseY = e.clientY - canvas.offsetTop;
+        const worldX = (mouseX - panX) / zoom;
+        const worldY = (mouseY - panY) / zoom;
+
+        if (e.deltaY < 0) {
+            zoom *= scaleAmount;
+        } else {
+            zoom /= scaleAmount;
+        }
+
+        panX = mouseX - worldX * zoom;
+        panY = mouseY - worldY * zoom;
+    } else {
+        panY -= e.deltaY;
+
+        // Infinite scroll
+        const lastPage = pages[pages.length - 1];
+        if (lastPage) {
+            const lastPageBottom = (lastPage.y + lastPage.height) * zoom + panY;
+            if (lastPageBottom < canvas.height + 200) {
+                addPage();
+            }
+        }
+    }
+    render();
+});
+
+toolbar.addPageBtn.addEventListener('click', addPage);
+
+toolbar.pageSizeSelect.addEventListener('change', () => {
+    if (toolbar.pageSizeSelect.value === 'custom') {
+        toolbar.customSizeInputs.style.display = 'block';
+    } else {
+        toolbar.customSizeInputs.style.display = 'none';
+    }
+});
+
+window.addEventListener('resize', render);
+
+// Initial setup
+addPage();

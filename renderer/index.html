@@ -3,51 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <title>Kivixa</title>
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <input type="text" id="search-input" placeholder="Search...">
-                <button id="add-folder-btn"><i class="fas fa-plus"></i></button>
-            </div>
-            <div id="folder-tree" class="folder-tree"></div>
-            <div class="recent-notes">
-                <h3>Recent Notes</h3>
-                <ul id="recent-notes-list"></ul>
-            </div>
-        </aside>
-        <main class="main-content">
-            <div class="note-list-container">
-                <div class="note-list-header">
-                    <h2 id="current-folder-name">Notes</h2>
-                    <button id="add-note-btn"><i class="fas fa-plus"></i></button>
-                </div>
-                <div id="note-list" class="note-list"></div>
-            </div>
-            <div class="note-editor-container">
-                <div id="note-editor" class="note-editor" style="display: none;">
-                    <input type="text" id="note-title-input" placeholder="Note Title">
-                    <div class="note-tags">
-                        <input type="text" id="tag-input" placeholder="Add a tag...">
-                        <div id="tags-container"></div>
-                    </div>
-                    <textarea id="note-content-input" placeholder="Start writing..."></textarea>
-                    <div class="note-actions">
-                        <button id="save-note-btn">Save</button>
-                        <button id="delete-note-btn">Delete</button>
-                    </div>
-                </div>
-                <div id="welcome-screen" class="welcome-screen">
-                    <h1>Select a note to start editing</h1>
-                    <p>Or create a new one</p>
-                </div>
-            </div>
-        </main>
+    <div id="toolbar">
+        <button id="add-page-btn">New Page</button>
+        <div class="control-group">
+            <label for="page-size-select">Page Size:</label>
+            <select id="page-size-select">
+                <option value="a4">A4</option>
+                <option value="a3">A3</option>
+                <option value="letter">Letter</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+        <div id="custom-size-inputs" style="display: none;">
+            <input type="number" id="custom-width-input" placeholder="Width (px)">
+            <input type="number" id="custom-height-input" placeholder="Height (px)">
+        </div>
+        <div class="control-group">
+            <label for="page-type-select">Page Type:</label>
+            <select id="page-type-select">
+                <option value="blank">Blank</option>
+                <option value="lined">Lined</option>
+                <option value="dotted">Dotted</option>
+                <option value="grid">Grid</option>
+                <option value="graph">Graph</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="page-color-picker">Page Color:</label>
+            <input type="color" id="page-color-picker" value="#f0f0f0">
+        </div>
     </div>
+    <canvas id="canvas"></canvas>
     <script src="renderer.js"></script>
 </body>
 </html>
