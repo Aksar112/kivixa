@@ -3,6 +3,8 @@ const ctx = canvas.getContext('2d');
 
 const toolbar = {
     addPageBtn: document.getElementById('add-page-btn'),
+    insertPageBtn: document.getElementById('insert-page-btn'),
+    tearPageBtn: document.getElementById('tear-page-btn'),
     pageSizeSelect: document.getElementById('page-size-select'),
     customSizeInputs: document.getElementById('custom-size-inputs'),
     customWidthInput: document.getElementById('custom-width-input'),
@@ -15,6 +17,7 @@ let pages = [];
 let panX = 0;
 let panY = 0;
 let zoom = 1;
+let hoveredPage = null;
 
 const PAGE_SIZES = {
     a4: { width: 794, height: 1123 },
@@ -33,22 +36,80 @@ function getPageSize() {
     }
 }
 
-function addPage() {
+function createNewPage() {
     const { width, height } = getPageSize();
-    const newPage = {
+    return {
         width,
         height,
         color: toolbar.pageColorPicker.value,
         type: toolbar.pageTypeSelect.value,
-        x: 0,
-        y: pages.length > 0 ? pages[pages.length - 1].y + pages[pages.length - 1].height + 20 : 0,
+        x: (canvas.width / (2*zoom)) - (width/2),
+        y: 0, // This will be recalculated
     };
+}
+
+function recalculatePagePositions() {
+    let currentY = 0;
+    pages.forEach(page => {
+        page.y = currentY;
+        currentY += page.height + 20; // 20px gap between pages
+    });
+}
+
+function addPageToEnd() {
+    const newPage = createNewPage();
     pages.push(newPage);
+    recalculatePagePositions();
     render();
 }
 
-function drawPage(page) {
+function insertPageAfter(targetPage) {
+    if (!targetPage) return;
+    const newPage = createNewPage();
+    const targetIndex = pages.findIndex(p => p === targetPage);
+    if (targetIndex > -1) {
+        pages.splice(targetIndex + 1, 0, newPage);
+        recalculatePagePositions();
+        render();
+    }
+}
+
+function tearPage(pageToTear) {
+    if (!pageToTear) return;
+
+    const index = pages.findIndex(p => p === pageToTear);
+    if (index === -1) return;
+
+    // Simple visual effect: just fade it out
+    let opacity = 1;
+    const animation = setInterval(() => {
+        opacity -= 0.1;
+        if (opacity <= 0) {
+            clearInterval(animation);
+            pages.splice(index, 1);
+            recalculatePagePositions();
+            render();
+        } else {
+            render(); // Rerender to show the fade
+            // On the next frame, draw the fading page on top
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            ctx.translate(panX, panY);
+            ctx.scale(zoom, zoom);
+            drawPage(pageToTear, true);
+            ctx.restore();
+        }
+    }, 30);
+}
+
+
+function drawPage(page, isFading = false) {
     ctx.fillStyle = page.color;
+    if (hoveredPage === page && !isFading) {
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(page.x - 2, page.y - 2, page.width + 4, page.height + 4);
+    }
     ctx.fillRect(page.x, page.y, page.width, page.height);
 
     switch (page.type) {
@@ -148,7 +209,7 @@ function render() {
     ctx.translate(panX, panY);
     ctx.scale(zoom, zoom);
 
-    pages.forEach(drawPage);
+    pages.forEach(page => drawPage(page));
 
     ctx.restore();
 }
@@ -156,6 +217,14 @@ function render() {
 let isPanning = false;
 let lastX = 0;
 let lastY = 0;
+
+function getMousePos(evt) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (evt.clientX - rect.left - panX) / zoom,
+        y: (evt.clientY - rect.top - panY) / zoom
+    };
+}
 
 canvas.addEventListener('mousedown', (e) => {
     isPanning = true;
@@ -172,6 +241,20 @@ canvas.addEventListener('mousemove', (e) => {
         lastX = e.clientX;
         lastY = e.clientY;
         render();
+    } else {
+        const pos = getMousePos(e);
+        const previouslyHovered = hoveredPage;
+        hoveredPage = null;
+        for (const page of pages) {
+            if (pos.x >= page.x && pos.x <= page.x + page.width &&
+                pos.y >= page.y && pos.y <= page.y + page.height) {
+                hoveredPage = page;
+                break;
+            }
+        }
+        if (previouslyHovered !== hoveredPage) {
+            render();
+        }
     }
 });
 
@@ -199,19 +282,21 @@ canvas.addEventListener('wheel', (e) => {
     } else {
         panY -= e.deltaY;
 
-        // Infinite scroll
-        const lastPage = pages[pages.length - 1];
-        if (lastPage) {
+        // Automatic page addition when scrolling near the end
+        if (pages.length > 0) {
+            const lastPage = pages[pages.length - 1];
             const lastPageBottom = (lastPage.y + lastPage.height) * zoom + panY;
-            if (lastPageBottom < canvas.height + 200) {
-                addPage();
+            if (lastPageBottom < canvas.height + 200) { // 200px threshold
+                addPageToEnd();
             }
         }
     }
     render();
 });
 
-toolbar.addPageBtn.addEventListener('click', addPage);
+toolbar.addPageBtn.addEventListener('click', addPageToEnd);
+toolbar.insertPageBtn.addEventListener('click', () => insertPageAfter(hoveredPage));
+toolbar.tearPageBtn.addEventListener('click', () => tearPage(hoveredPage));
 
 toolbar.pageSizeSelect.addEventListener('change', () => {
     if (toolbar.pageSizeSelect.value === 'custom') {
@@ -224,4 +309,4 @@ toolbar.pageSizeSelect.addEventListener('change', () => {
 window.addEventListener('resize', render);
 
 // Initial setup
-addPage();
+addPageToEnd();
