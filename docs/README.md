@@ -1,3 +1,8 @@
+
+<p align="center">
+	<img src="../build/icon.ico" alt="Kivixa App Icon" width="96" height="96">
+</p>
+
 # Kivixa
 
 Kivixa is a versatile, high-performance digital notebook application designed for freeform note-taking, sketching, and technical drawing. Built with Electron, it combines the power of web technologies with robust local data storage, offering a seamless and responsive experience for all your creative and technical needs.

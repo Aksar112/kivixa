@@ -25,14 +25,16 @@
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.1.7",
     "jspdf": "^3.0.1",
     "showdown": "^2.1.0",
-    "sqlite3": "^5.1.7",
-  "electron-updater": "^6.1.7",
-  "electron-log": "^5.0.0"
+    "sqlite3": "^5.1.7"
   },
   "build": {
-    "publish": ["github"],
+    "publish": [
+      "github"
+    ],
     "appId": "com.kivixa.app",
     "productName": "Kivixa",
     "directories": {
