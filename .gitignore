@@ -1,3 +1,7 @@
 .env
 node_modules/
 
+#include later
+docs/CONTRIBUTING.md
+docs/LICENSE.md
+docs/CHANGELOG.md
