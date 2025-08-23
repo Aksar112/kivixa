@@ -1,7 +1,7 @@
 {
   "name": "kivixa",
   "version": "1.0.0",
-  "description": "",
+  "description": "A powerful and intuitive application for managing your notes and ideas.",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -13,8 +13,8 @@
     "url": "git+https://github.com/990aa/kivixa.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "990aa",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/990aa/kivixa/issues"
@@ -45,6 +45,7 @@
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"
-    }
+    },
+    "copyright": "Copyright © 2025 990aa"
   }
 }
