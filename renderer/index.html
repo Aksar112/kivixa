@@ -117,11 +117,24 @@
             </div>
         </div>
     </div>
-    <div id="canvas-container">
-        <canvas id="pages-canvas"></canvas>
-        <canvas id="drawing-canvas"></canvas>
-        <canvas id="live-canvas"></canvas>
-        <canvas id="tool-overlay-canvas"></canvas>
+    <div id="main-content">
+        <div id="tabs">
+            <button class="tab-link active" data-tab="notebook-view">Notebook</button>
+            <button class="tab-link" data-tab="help-view">Help</button>
+        </div>
+
+        <div id="notebook-view" class="tab-content active">
+            <div id="canvas-container">
+                <canvas id="pages-canvas"></canvas>
+                <canvas id="drawing-canvas"></canvas>
+                <canvas id="live-canvas"></canvas>
+                <canvas id="tool-overlay-canvas"></canvas>
+            </div>
+        </div>
+
+        <div id="help-view" class.="tab-content">
+            <!-- Documentation will be loaded here -->
+        </div>
     </div>
     <script src="renderer.js"></script>
 </body>

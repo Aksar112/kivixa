@@ -135,6 +135,72 @@ body, html {
     z-index: 3;
 }
 
+#main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#tabs {
+    display: flex;
+    background-color: #2a2a2a;
+}
+
+.tab-link {
+    padding: 10px 15px;
+    cursor: pointer;
+    background-color: #333;
+    border: none;
+    color: white;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-link.active {
+    background-color: #444;
+    border-bottom: 3px solid #00aaff;
+}
+
+.tab-content {
+    display: none;
+    flex-grow: 1;
+    background-color: #444;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+#canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+#help-view {
+    padding: 20px;
+    color: #ddd;
+    overflow-y: auto;
+    height: calc(100vh - 45px); /* Adjust based on tab height */
+}
+
+#help-view h1, #help-view h2, #help-view h3 {
+    color: #00aaff;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+#help-view code {
+    background-color: #2a2a2a;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+#help-view blockquote {
+    border-left: 4px solid #555;
+    padding-left: 15px;
+    color: #aaa;
+}
+
 #tool-overlay-canvas {
     z-index: 4;
     pointer-events: auto; /* Make sure this canvas receives events */

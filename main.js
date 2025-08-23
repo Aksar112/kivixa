@@ -193,6 +193,9 @@ ipcMain.handle('update-note-content', async (event, { id, content }) => {
     });
 });
 
+
+const fs = require('fs');
+
 // Search IPC
 
 // Search IPC
@@ -258,6 +261,18 @@ ipcMain.handle('remove-note-tag', async (event, { note_id, tag_id }) => {
                 reject(err);
             }
             resolve({ note_id, tag_id });
+        });
+    });
+});
+
+// Documentation IPC
+ipcMain.handle('get-documentation', async () => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(path.join(__dirname, 'docs', 'DOCUMENTATION.md'), 'utf8', (err, data) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(data);
         });
     });
 });

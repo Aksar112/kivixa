@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electron', {
     addFolder: (folder) => ipcRenderer.invoke('add-folder', folder),
     deleteFolder: (id) => ipcRenderer.invoke('delete-folder', id),
 
+    // Documentation
+    getDocumentation: () => ipcRenderer.invoke('get-documentation'),
+
     // Load data from main process
     onLoadNotebook: (callback) => ipcRenderer.on('load-notebook', (event, data) => callback(data)),
 });
