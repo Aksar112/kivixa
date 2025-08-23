@@ -26,3 +26,7 @@ For a complete guide on how to use all the features of Kivixa, please see the [U
 ## Development
 
 To set up a local development environment, please follow the instructions in the [Developer Guide](DEVELOPER_GUIDE.md).
+
+## Contributing
+
+We welcome contributions! If you would like to help improve Kivixa, please see my [Contribution Guidelines](CONTRIBUTING.md).
