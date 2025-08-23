@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Kivixa</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="title-bar">
+            <div class="title">Kivixa</div>
+            <div class="controls">
+                <div class="control-button" id="minimize-btn">-</div>
+                <div class="control-button" id="maximize-btn">+</div>
+                <div class="control-button" id="close-btn">x</div>
+            </div>
+        </header>
+        <main class="content">
+            <h1>Welcome to Kivixa</h1>
+            <p>A minimalist Electron application.</p>
+            <div id="drag-drop-area" class="drag-drop-area">
+                <p>Drag & Drop Files Here</p>
+            </div>
+            <div id="data-container"></div>
+        </main>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>
