@@ -21,12 +21,8 @@ Kivixa is a versatile, high-performance digital notebook application designed fo
 
 ## Usage
 
-For a complete guide on how to use all the features of Kivixa, please see the [User Documentation](USER_GUIDE.md).
+For a complete guide on how to use all the features of Kivixa, please see the [User Documentation](DOCUMENTATION.md).
 
 ## Development
 
 To set up a local development environment, please follow the instructions in the [Developer Guide](DEVELOPER_GUIDE.md).
-
-## Contributing
-
-We welcome contributions! If you would like to help improve Kivixa, please see our [Contribution Guidelines](CONTRIBUTING.md).
