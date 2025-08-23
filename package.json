@@ -1,0 +1,36 @@
+{
+  "name": "kivixa",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/990aa/kivixa.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/990aa/kivixa/issues"
+  },
+  "homepage": "https://github.com/990aa/kivixa#readme",
+  "devDependencies": {
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  },
+  "build": {
+    "appId": "com.kivixa.app",
+    "productName": "Kivixa",
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
