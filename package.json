@@ -27,9 +27,11 @@
   "dependencies": {
     "jspdf": "^3.0.1",
     "showdown": "^2.1.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "electron-updater": "^6.1.7"
   },
   "build": {
+    "publish": ["github"],
     "appId": "com.kivixa.app",
     "productName": "Kivixa",
     "directories": {

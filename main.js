@@ -1,32 +1,60 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const db = require('./database/database.js');
 
+let mainWindow;
 function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    icon: path.join(__dirname, 'build/icon.ico'),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      enableRemoteModule: false,
-      nodeIntegration: false
-    },
-    frame: false,
-    titleBarStyle: 'hidden',
-    backgroundColor: '#121212'
-  });
-
-  mainWindow.loadFile('renderer/index.html');
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        icon: path.join(__dirname, 'build/icon.ico'),
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,
+            enableRemoteModule: false,
+            nodeIntegration: false
+        },
+        frame: false,
+        titleBarStyle: 'hidden',
+        backgroundColor: '#121212'
+    });
+    mainWindow.loadFile('renderer/index.html');
 }
 
-app.whenReady().then(() => {
-  createWindow();
 
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.whenReady().then(() => {
+    createWindow();
+
+    // Auto-update logic
+    autoUpdater.checkForUpdatesAndNotify();
+
+    autoUpdater.on('checking-for-update', () => {
+        mainWindow.webContents.send('update_status', 'Checking for updates...');
+    });
+    autoUpdater.on('update-available', () => {
+        mainWindow.webContents.send('update_status', 'Update available. Downloading...');
+    });
+    autoUpdater.on('update-not-available', () => {
+        mainWindow.webContents.send('update_status', 'No update available.');
+    });
+    autoUpdater.on('download-progress', (info) => {
+        mainWindow.webContents.send('update_status', 'Downloading update: ' + info.percent.toFixed(2) + '%');
+    });
+    autoUpdater.on('update-downloaded', () => {
+        mainWindow.webContents.send('update_status', 'Update downloaded. Restart to install.');
+    });
+    autoUpdater.on('error', (err) => {
+        mainWindow.webContents.send('update_status', 'Error during update: ' + err.message + '. Please report at https://github.com/990aa/kivixa/issues');
+    });
+
+    ipcMain.on('restart_app', () => {
+        autoUpdater.quitAndInstall();
+    });
+
+    app.on('activate', function () {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
 });
 
 app.on('window-all-closed', function () {
