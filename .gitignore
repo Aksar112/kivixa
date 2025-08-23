@@ -1,3 +1,6 @@
+# Electron log files
+logs/
+*.log
 .env
 node_modules/
 TODO

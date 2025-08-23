@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const log = require('electron-log');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const db = require('./database/database.js');
@@ -24,31 +25,39 @@ function createWindow() {
 
 
 app.whenReady().then(() => {
+    log.info('App starting...');
     createWindow();
 
     // Auto-update logic
     autoUpdater.checkForUpdatesAndNotify();
 
     autoUpdater.on('checking-for-update', () => {
+        log.info('Checking for updates...');
         mainWindow.webContents.send('update_status', 'Checking for updates...');
     });
     autoUpdater.on('update-available', () => {
+        log.info('Update available. Downloading...');
         mainWindow.webContents.send('update_status', 'Update available. Downloading...');
     });
     autoUpdater.on('update-not-available', () => {
+        log.info('No update available.');
         mainWindow.webContents.send('update_status', 'No update available.');
     });
     autoUpdater.on('download-progress', (info) => {
+        log.info(`Downloading update: ${info.percent.toFixed(2)}%`);
         mainWindow.webContents.send('update_status', 'Downloading update: ' + info.percent.toFixed(2) + '%');
     });
     autoUpdater.on('update-downloaded', () => {
+        log.info('Update downloaded. Ready to install.');
         mainWindow.webContents.send('update_status', 'Update downloaded. Restart to install.');
     });
     autoUpdater.on('error', (err) => {
+        log.error('Error during update:', err);
         mainWindow.webContents.send('update_status', 'Error during update: ' + err.message + '. Please report at https://github.com/990aa/kivixa/issues');
     });
 
     ipcMain.on('restart_app', () => {
+        log.info('Restarting app to install update...');
         autoUpdater.quitAndInstall();
     });
 
@@ -58,10 +67,12 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') {
-    db.close();
-    app.quit();
-  }
+    log.info('All windows closed.');
+    if (process.platform !== 'darwin') {
+        db.close();
+        log.info('Database closed. Quitting app.');
+        app.quit();
+    }
 });
 
 // Folders IPC
