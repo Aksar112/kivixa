@@ -99,6 +99,22 @@ body, html {
     height: 100vh;
 }
 
+.grid-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+#commit-shape-btn {
+    width: 100%;
+    background-color: #28a745 !important;
+}
+
+#commit-shape-btn:hover {
+    background-color: #218838 !important;
+}
+
 #canvas-container canvas {
     position: absolute;
     top: 0;
@@ -117,5 +133,9 @@ body, html {
 
 #live-canvas {
     z-index: 3;
+}
+
+#tool-overlay-canvas {
+    z-index: 4;
     pointer-events: auto; /* Make sure this canvas receives events */
 }

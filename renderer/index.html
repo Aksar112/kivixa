@@ -42,6 +42,26 @@
         </div>
 
         <div class="tool-section">
+            <h3>Geometry</h3>
+            <div id="geometry-tool-selector" class="grid-buttons">
+                <button id="ruler-tool-btn" class="tool-btn">Ruler</button>
+                <button id="protractor-tool-btn" class="tool-btn">Protractor</button>
+                <button id="compass-tool-btn" class="tool-btn">Compass</button>
+                <button id="shape-tool-btn" class="tool-btn">Shapes</button>
+            </div>
+            <div id="shape-options" class="tool-options">
+                <h4>Shape Type</h4>
+                <div class="grid-buttons">
+                    <button class="shape-type-btn" data-shape="rectangle">Rect</button>
+                    <button class="shape-type-btn" data-shape="circle">Circle</button>
+                    <button class="shape-type-btn" data-shape="ellipse">Ellipse</button>
+                    <button class="shape-type-btn" data-shape="parallelogram">Para</button>
+                </div>
+                <button id="commit-shape-btn">Commit Shape</button>
+            </div>
+        </div>
+
+        <div class="tool-section">
             <h3>Tools</h3>
             <div id="tool-selector">
                 <button id="pen-tool-btn" class="tool-btn active">Pen</button>
@@ -94,6 +114,7 @@
         <canvas id="pages-canvas"></canvas>
         <canvas id="drawing-canvas"></canvas>
         <canvas id="live-canvas"></canvas>
+        <canvas id="tool-overlay-canvas"></canvas>
     </div>
     <script src="renderer.js"></script>
 </body>

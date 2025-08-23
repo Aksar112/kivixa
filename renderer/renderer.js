@@ -1,383 +1,103 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // -- Canvas Setup --
-    const pagesCanvas = document.getElementById('pages-canvas');
-    const drawingCanvas = document.getElementById('drawing-canvas');
-    const liveCanvas = document.getElementById('live-canvas');
-    const pctx = pagesCanvas.getContext('2d');
-    const dctx = drawingCanvas.getContext('2d');
-    const lctx = liveCanvas.getContext('2d');
+    // -- Canvas and Context Setup --
+    const canvases = {
+        pages: document.getElementById('pages-canvas'),
+        drawing: document.getElementById('drawing-canvas'),
+        live: document.getElementById('live-canvas'),
+        tool: document.getElementById('tool-overlay-canvas'),
+    };
+    const ctx = {
+        p: canvases.pages.getContext('2d'),
+        d: canvases.drawing.getContext('2d'),
+        l: canvases.live.getContext('2d'),
+        t: canvases.tool.getContext('2d'),
+    };
 
-    // -- Toolbar UI --
+    // -- Toolbar UI References --
     const toolbar = {
-        // Page Controls
-        addPageBtn: document.getElementById('add-page-btn'),
-        insertPageBtn: document.getElementById('insert-page-btn'),
-        tearPageBtn: document.getElementById('tear-page-btn'),
-        pageSizeSelect: document.getElementById('page-size-select'),
-        customSizeInputs: document.getElementById('custom-size-inputs'),
-        customWidthInput: document.getElementById('custom-width-input'),
-        customHeightInput: document.getElementById('custom-height-input'),
-        pageTypeSelect: document.getElementById('page-type-select'),
-        pageColorPicker: document.getElementById('page-color-picker'),
-        // Tool Selection
         penToolBtn: document.getElementById('pen-tool-btn'),
-        eraserToolBtn: document.getElementById('eraser-tool-btn'),
-        laserToolBtn: document.getElementById('laser-tool-btn'),
-        // Pen Options
-        penOptions: document.getElementById('pen-options'),
-        penColorPicker: document.getElementById('pen-color-picker'),
-        penStyleSelect: document.getElementById('pen-style-select'),
-        penThicknessSlider: document.getElementById('pen-thickness-slider'),
-        penOpacitySlider: document.getElementById('pen-opacity-slider'),
-        // Eraser Options
-        eraserOptions: document.getElementById('eraser-options'),
-        eraserSizeSlider: document.getElementById('eraser-size-slider'),
-        eraserStyleSelect: document.getElementById('eraser-style-select'),
+        shapeToolBtn: document.getElementById('shape-tool-btn'),
+        rulerToolBtn: document.getElementById('ruler-tool-btn'),
+        setSquareToolBtn: document.getElementById('set-square-tool-btn'),
+        compassToolBtn: document.getElementById('compass-tool-btn'),
+        commitShapeBtn: document.getElementById('commit-shape-btn'),
+        shapeOptions: document.getElementById('shape-options'),
+        pen: { color: document.getElementById('pen-color-picker'), thickness: document.getElementById('pen-thickness-slider') }
     };
 
     // -- State Management --
     const state = {
-        pages: [],
-        panX: 0,
-        panY: 0,
-        zoom: 1,
-        hoveredPage: null,
-        isDrawing: false,
-        isPanning: false,
-        lastX: 0,
-        lastY: 0,
-        currentStroke: [],
-        activeTool: 'pen',
-        pen: {
-            color: '#000000',
-            style: 'fine-liner',
-            thickness: 5,
-            opacity: 1,
-        },
-        eraser: {
-            size: 20,
-            style: 'pixel',
-        },
-        laser: {
-            x: 0,
-            y: 0,
-        }
+        pages: [], panX: 0, panY: 0, zoom: 1,
+        activeToolHandler: null, activeGuide: null, activeShape: null,
+        pen: { color: '#000000', style: 'fine-liner', thickness: 5, opacity: 1 },
     };
 
-    const PAGE_SIZES = {
-        a4: { width: 794, height: 1123 },
-        a3: { width: 1123, height: 1587 },
-        letter: { width: 816, height: 1056 },
+    // -- Classes for Tools and Shapes --
+    class BaseTool {
+        constructor(x, y, w, h) { this.x = x; this.y = y; this.w = w; this.h = h; this.rotation = 0; }
+        getCenter() { return { x: this.x + this.w / 2, y: this.y + this.h / 2 }; }
+        getHandles() { return { tl: { x: this.x, y: this.y }, tr: { x: this.x + this.w, y: this.y }, bl: { x: this.x, y: this.y + this.h }, br: { x: this.x + this.w, y: this.y + this.h }, rot: { x: this.x + this.w / 2, y: this.y - 20 } }; }
+        drawHandles(ctx) { const handles = this.getHandles(); ctx.fillStyle = '#00aaff'; Object.values(handles).forEach(h => { const rotated = this.rotatePoint(h, this.getCenter(), this.rotation); ctx.beginPath(); ctx.arc(rotated.x, rotated.y, 8, 0, 2 * Math.PI); ctx.fill(); }); }
+        getHandleAt(point) { const handles = this.getHandles(); for (const [key, h] of Object.entries(handles)) { const rotated = this.rotatePoint(h, this.getCenter(), this.rotation); if (Math.hypot(rotated.x - point.x, rotated.y - point.y) < 10) return key; } return null; }
+        rotatePoint(point, center, angle) { const dx = point.x - center.x, dy = point.y - center.y; return { x: dx * Math.cos(angle) - dy * Math.sin(angle) + center.x, y: dx * Math.sin(angle) + dy * Math.cos(angle) + center.y }; }
+        isPointInside(point) { const unrotated = this.rotatePoint(point, this.getCenter(), -this.rotation); return unrotated.x >= this.x && unrotated.x <= this.x + this.w && unrotated.y >= this.y && unrotated.y <= this.y + this.h; }
+    }
+
+    class Shape extends BaseTool { constructor(type, x, y, w, h, color, thickness) { super(x, y, w, h); this.type = type; this.color = color; this.thickness = thickness; } draw(ctx, withHandles = false) { ctx.save(); const center = this.getCenter(); ctx.translate(center.x, center.y); ctx.rotate(this.rotation); ctx.translate(-center.x, -center.y); ctx.strokeStyle = this.color; ctx.lineWidth = this.thickness; ctx.beginPath(); if (this.type === 'rectangle') ctx.rect(this.x, this.y, this.w, this.h); else if (this.type === 'circle') ctx.arc(center.x, center.y, this.w / 2, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); if (withHandles) this.drawHandles(ctx); } }
+    class Ruler extends BaseTool { constructor(x, y) { super(x, y, 500, 50); } draw(ctx) { ctx.save(); const center = this.getCenter(); ctx.translate(center.x, center.y); ctx.rotate(this.rotation); ctx.translate(-center.x, -center.y); ctx.fillStyle = 'rgba(200, 200, 100, 0.7)'; ctx.fillRect(this.x, this.y, this.w, this.h); ctx.restore(); this.drawHandles(ctx); } }
+    class SetSquare extends BaseTool { constructor(x, y) { super(x, y, 300, 300); } draw(ctx) { ctx.save(); const center = this.getCenter(); ctx.translate(center.x, center.y); ctx.rotate(this.rotation); ctx.translate(-center.x, -center.y); ctx.fillStyle = 'rgba(100, 150, 200, 0.7)'; ctx.beginPath(); ctx.moveTo(this.x, this.y + this.h); ctx.lineTo(this.x, this.y); ctx.lineTo(this.x + this.w, this.y + this.h); ctx.closePath(); ctx.fill(); ctx.restore(); this.drawHandles(ctx); } }
+
+    // -- Tool Handlers (State Pattern) --
+    const toolHandlers = {
+        pen: { currentStroke: [], onPointerDown(e, pos) { this.currentStroke = [getSnappedPos(pos, e.pressure)]; }, onPointerMove(e, pos) { if (this.currentStroke.length > 0) this.currentStroke.push(getSnappedPos(pos, e.pressure)); }, onPointerUp() { commitStroke(this.currentStroke); this.currentStroke = []; }, draw(lctx) { renderStroke(lctx, this.currentStroke, { ...state.pen, tool: 'pen' }, true); } },
+        defineShape: { shapeType: 'rectangle', startPos: null, onActivate(options) { this.shapeType = options.shapeType; canvases.tool.style.cursor = 'crosshair'; }, onDeactivate() { canvases.tool.style.cursor = 'default'; }, onPointerDown(e, pos) { this.startPos = pos; }, onPointerMove(e, pos) { if (!this.startPos) return; const tempShape = new Shape(this.shapeType, this.startPos.x, this.startPos.y, pos.x - this.startPos.x, pos.y - this.startPos.y, state.pen.color, state.pen.thickness); tempShape.draw(ctx.t); }, onPointerUp(e, pos) { const w = pos.x - this.startPos.x; const h = pos.y - this.startPos.y; state.activeShape = new Shape(this.shapeType, this.startPos.x, this.startPos.y, w, h, state.pen.color, state.pen.thickness); switchTool(toolHandlers.manipulate, { target: state.activeShape }); } },
+        manipulate: { target: null, handle: null, lastPos: null, onActivate(options) { this.target = options.target; }, onPointerDown(e, pos) { this.handle = this.target.getHandleAt(pos); this.lastPos = pos; }, onPointerMove(e, pos) { const dx = pos.x - this.lastPos.x; const dy = pos.y - this.lastPos.y; if (this.handle) { const t = this.target; if (this.handle === 'rot') t.rotation += Math.atan2(pos.y - t.getCenter().y, pos.x - t.getCenter().x) - Math.atan2(this.lastPos.y - t.getCenter().y, this.lastPos.x - t.getCenter().x); else { const unrotatedDx = dx * Math.cos(-t.rotation) - dy * Math.sin(-t.rotation); const unrotatedDy = dx * Math.sin(-t.rotation) + dy * Math.cos(-t.rotation); if (this.handle.includes('l')) { t.x += unrotatedDx; t.w -= unrotatedDx; } if (this.handle.includes('t')) { t.y += unrotatedDy; t.h -= unrotatedDy; } if (this.handle.includes('r')) { t.w += unrotatedDx; } if (this.handle.includes('b')) { t.h += unrotatedDy; } } } else if (this.target.isPointInside(pos)) { this.target.x += dx; this.target.y += dy; } this.lastPos = pos; }, onPointerUp() { /* Manipulation ends */ }, draw(tctx) { if (this.target) this.target.draw(tctx, true); } }
     };
 
-    // -- Page Management --
-    function createNewPage() {
-        const { width, height } = getPageSize();
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = width;
-        pageCanvas.height = height;
+    // -- Core Logic --
+    function addPageToEnd() { state.pages.push({ width: 794, height: 1123, strokes: [], drawingCache: document.createElement('canvas') }); recalculatePagePositions(); requestRedraw(); }
+    function recalculatePagePositions() { let y = 20; state.pages.forEach(p => { p.x = (canvases.pages.width / 2) - (p.width / 2); p.y = y; y += p.height + 20; }); }
+    function commit(item) { const page = findPageAt(item.x, item.y); if (page) { const pageItem = { ...item, x: item.x - page.x, y: item.y - page.y }; page.strokes.push({ points: [pageItem], tool: { tool: 'shape' } }); redrawPageCache(page); } state.activeShape = null; requestRedraw(); }
+    function commitStroke(stroke) { if (stroke.length < 2) return; const page = findPageAt(stroke[0].x, stroke[0].y); if (page) { const pageStroke = { points: stroke.map(p => ({ x: p.x - page.x, y: p.y - page.y, pressure: p.pressure })), tool: { ...state.pen, tool: 'pen' } }; page.strokes.push(pageStroke); redrawPageCache(page); } }
+    function redrawPageCache(page) { const c = page.drawingCache; const cctx = c.getContext('2d'); c.width = page.width; c.height = page.height; cctx.clearRect(0, 0, c.width, c.height); page.strokes.forEach(s => renderStroke(cctx, s.points, s.tool, false)); requestRedraw(); }
 
-        return {
-            width,
-            height,
-            color: toolbar.pageColorPicker.value,
-            type: toolbar.pageTypeSelect.value,
-            x: 0, y: 0, // Recalculated later
-            strokes: [],
-            drawingCache: pageCanvas, // Off-screen canvas for committed drawings
-        };
-    }
-
-    function addPageToEnd() {
-        const newPage = createNewPage();
-        state.pages.push(newPage);
-        recalculatePagePositions();
-        requestRedraw();
-    }
-
-    function insertPageAfter(targetPage) {
-        if (!targetPage) return;
-        const newPage = createNewPage();
-        const targetIndex = state.pages.findIndex(p => p === targetPage);
-        if (targetIndex > -1) {
-            state.pages.splice(targetIndex + 1, 0, newPage);
-            recalculatePagePositions();
-            requestRedraw();
-        }
-    }
-
-    function tearPage(pageToTear) {
-        if (!pageToTear) return;
-        const index = state.pages.findIndex(p => p === pageToTear);
-        if (index > -1) {
-            state.pages.splice(index, 1);
-            recalculatePagePositions();
-            requestRedraw();
-        }
-    }
-
-    function recalculatePagePositions() {
-        let currentY = 20;
-        const centerX = (pagesCanvas.width / (2 * state.zoom)) - (state.pages[0]?.width / 2 || 0);
-        state.pages.forEach(page => {
-            page.y = currentY;
-            page.x = centerX;
-            currentY += page.height + 20; // 20px gap
-        });
-    }
-
-    function getPageSize() {
-        const selectedSize = toolbar.pageSizeSelect.value;
-        if (selectedSize === 'custom') {
-            return { 
-                width: parseInt(toolbar.customWidthInput.value) || 800, 
-                height: parseInt(toolbar.customHeightInput.value) || 600 
-            };
-        }
-        return PAGE_SIZES[selectedSize];
-    }
-
-    // -- Drawing Engine --
-    function startDrawing(e) {
-        if (state.activeTool === 'laser') return;
-        state.isDrawing = true;
-        const pos = getMousePos(e);
-        state.currentStroke = [{ 
-            x: pos.x, 
-            y: pos.y, 
-            pressure: e.pressure || 0.5 
-        }];
-    }
-
-    function draw(e) {
-        if (!state.isDrawing) return;
-        const pos = getMousePos(e);
-        state.currentStroke.push({ 
-            x: pos.x, 
-            y: pos.y, 
-            pressure: e.pressure || 0.5 
-        });
-        // Live drawing is handled by the render loop
-    }
-
-    function endDrawing() {
-        if (!state.isDrawing) return;
-        state.isDrawing = false;
-        commitStroke(state.currentStroke);
-        state.currentStroke = [];
-    }
-
-    function commitStroke(stroke) {
-        if (stroke.length < 2) return;
-        const page = findPageAt(stroke[0].x, stroke[0].y);
-        if (page) {
-            const pageStroke = {
-                points: stroke.map(p => ({ x: p.x - page.x, y: p.y - page.y, pressure: p.pressure })),
-                tool: { ...state[state.activeTool], tool: state.activeTool }
-            };
-            page.strokes.push(pageStroke);
-            // Redraw the drawing cache for that page
-            redrawPageCache(page);
-            requestRedraw();
-        }
-    }
-
-    function redrawPageCache(page) {
-        const ctx = page.drawingCache.getContext('2d');
-        ctx.clearRect(0, 0, page.width, page.height);
-        page.strokes.forEach(stroke => {
-            renderStroke(ctx, stroke.points, stroke.tool, false);
-        });
-    }
-
-    // -- Render Logic --
+    // -- Render --
     let redrawRequested = true;
     function requestRedraw() { redrawRequested = true; }
-
     function render() {
-        lctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-
-        if (state.isDrawing && state.currentStroke.length > 0) {
-            renderStroke(lctx, state.currentStroke, { ...state[state.activeTool], tool: state.activeTool }, true);
-        }
-
-        if (state.activeTool === 'laser') {
-            lctx.fillStyle = 'red';
-            lctx.beginPath();
-            lctx.arc(state.laser.x, state.laser.y, 10, 0, 2 * Math.PI);
-            lctx.fill();
-        }
-
-        if (redrawRequested) {
-            pctx.clearRect(0, 0, pagesCanvas.width, pagesCanvas.height);
-            dctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-
-            pctx.save();
-            dctx.save();
-            pctx.translate(state.panX, state.panY);
-            dctx.translate(state.panX, state.panY);
-            pctx.scale(state.zoom, state.zoom);
-            dctx.scale(state.zoom, state.zoom);
-
-            state.pages.forEach(page => {
-                // Draw page background
-                pctx.fillStyle = page.color;
-                pctx.fillRect(page.x, page.y, page.width, page.height);
-                // Draw committed drawings
-                dctx.drawImage(page.drawingCache, page.x, page.y);
-            });
-
-            pctx.restore();
-            dctx.restore();
-            redrawRequested = false;
-        }
+        ctx.l.clearRect(0, 0, canvases.live.width, canvases.live.height);
+        ctx.t.clearRect(0, 0, canvases.tool.width, canvases.tool.height);
+        if (state.activeToolHandler && state.activeToolHandler.draw) state.activeToolHandler.draw(ctx.l, ctx.t);
+        if (state.activeGuide) state.activeGuide.draw(ctx.t);
+        if (redrawRequested) { pctx.clearRect(0, 0, canvases.pages.width, canvases.pages.height); dctx.clearRect(0, 0, canvases.drawing.width, canvases.drawing.height); pctx.save(); dctx.save(); pctx.translate(state.panX, state.panY); dctx.translate(state.panX, state.panY); pctx.scale(state.zoom, state.zoom); dctx.scale(state.zoom, state.zoom); state.pages.forEach(page => { pctx.fillStyle = '#FFF'; pctx.fillRect(page.x, page.y, page.width, page.height); dctx.drawImage(page.drawingCache, page.x, page.y); }); pctx.restore(); dctx.restore(); redrawRequested = false; }
         requestAnimationFrame(render);
     }
+    function renderStroke(ctx, points, tool, isLive) { if (tool.tool === 'shape') { const s = points[0]; const shape = new Shape(s.type, s.x, s.y, s.w, s.h, s.color, s.thickness); shape.rotation = s.rotation; shape.draw(ctx); return; } if (points.length < 2) return; ctx.save(); if (isLive) { ctx.translate(state.panX, state.panY); ctx.scale(state.zoom, state.zoom); } ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = tool.color || '#000'; ctx.globalAlpha = tool.opacity || 1; ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for (let i = 1; i < points.length; i++) { ctx.lineWidth = tool.style === 'brush' ? tool.thickness * points[i].pressure : tool.thickness; ctx.lineTo(points[i].x, points[i].y); } ctx.stroke(); ctx.restore(); }
 
-    function renderStroke(ctx, points, tool, isLive) {
-        if (points.length < 2) return;
-
-        ctx.save();
-        if (isLive) {
-            ctx.translate(state.panX, state.panY);
-            ctx.scale(state.zoom, state.zoom);
-        }
-
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = tool.color || '#000';
-        ctx.globalAlpha = tool.opacity || 1;
-
-        if (tool.tool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = tool.size;
-        } else {
-            ctx.globalCompositeOperation = 'source-over';
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-
-        for (let i = 1; i < points.length; i++) {
-            if (tool.style === 'brush' || tool.style === 'marker') {
-                ctx.lineWidth = tool.thickness * points[i].pressure;
-            }
-            else {
-                ctx.lineWidth = tool.thickness;
-            }
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    // -- Event Listeners --
+    // -- Event Handlers & Tool Switching --
     function setupEventListeners() {
-        // Tool selection
-        toolbar.penToolBtn.addEventListener('click', () => switchTool('pen'));
-        toolbar.eraserToolBtn.addEventListener('click', () => switchTool('eraser'));
-        toolbar.laserToolBtn.addEventListener('click', () => switchTool('laser'));
-
-        // Page controls
-        toolbar.addPageBtn.addEventListener('click', addPageToEnd);
-        toolbar.insertPageBtn.addEventListener('click', () => insertPageAfter(state.hoveredPage));
-        toolbar.tearPageBtn.addEventListener('click', () => tearPage(state.hoveredPage));
-
-        // Tool options
-        toolbar.penColorPicker.onchange = (e) => state.pen.color = e.target.value;
-        toolbar.penStyleSelect.onchange = (e) => state.pen.style = e.target.value;
-        toolbar.penThicknessSlider.oninput = (e) => state.pen.thickness = e.target.value;
-        toolbar.penOpacitySlider.oninput = (e) => state.pen.opacity = e.target.value;
-        toolbar.eraserSizeSlider.oninput = (e) => state.eraser.size = e.target.value;
-
-        // Canvas events
-        liveCanvas.addEventListener('pointerdown', handlePointerDown);
-        liveCanvas.addEventListener('pointermove', handlePointerMove);
-        liveCanvas.addEventListener('pointerup', handlePointerUp);
-        liveCanvas.addEventListener('pointerleave', handlePointerUp); // End drawing if pointer leaves
+        toolbar.penToolBtn.addEventListener('click', () => switchTool(toolHandlers.pen));
+        toolbar.shapeToolBtn.addEventListener('click', () => toolbar.shapeOptions.style.display = 'block');
+        document.querySelectorAll('.shape-type-btn').forEach(btn => btn.addEventListener('click', () => { switchTool(toolHandlers.defineShape, { shapeType: btn.dataset.shape }); toolbar.shapeOptions.style.display = 'none'; }));
+        toolbar.rulerToolBtn.addEventListener('click', () => toggleGuide('ruler'));
+        toolbar.setSquareToolBtn.addEventListener('click', () => toggleGuide('setSquare'));
+        toolbar.commitShapeBtn.addEventListener('click', () => { if (state.activeShape) { commit(state.activeShape); } switchTool(toolHandlers.pen); });
+        canvases.tool.addEventListener('pointerdown', (e) => { const pos = getMousePos(e); const activeObject = state.activeShape || state.activeGuide; if (activeObject && activeObject.getHandleAt(pos)) { switchTool(toolHandlers.manipulate, { target: activeObject }); } if (state.activeToolHandler && state.activeToolHandler.onPointerDown) state.activeToolHandler.onPointerDown(e, pos); });
+        canvases.tool.addEventListener('pointermove', (e) => { const pos = getMousePos(e); if (state.activeToolHandler && state.activeToolHandler.onPointerMove) state.activeToolHandler.onPointerMove(e, pos); updateCursor(e, pos); });
+        canvases.tool.addEventListener('pointerup', (e) => { const pos = getMousePos(e); if (state.activeToolHandler && state.activeToolHandler.onPointerUp) state.activeToolHandler.onPointerUp(e, pos); });
         window.addEventListener('resize', resizeCanvases);
     }
+    function switchTool(handler, options = {}) { if (state.activeToolHandler && state.activeToolHandler.onDeactivate) state.activeToolHandler.onDeactivate(); state.activeToolHandler = handler; if (state.activeToolHandler && state.activeToolHandler.onActivate) state.activeToolHandler.onActivate(options); }
+    function toggleGuide(guideType) { if (state.activeGuide?.type === guideType) { state.activeGuide = null; } else { const GuideClass = { ruler: Ruler, setSquare: SetSquare }[guideType]; state.activeGuide = new GuideClass(300, 300); state.activeGuide.type = guideType; } requestRedraw(); }
+    function updateCursor(e, pos) { let cursor = 'default'; const activeObject = state.activeShape || state.activeGuide; if (activeObject) { const handle = activeObject.getHandleAt(pos); if (handle) { cursor = handle === 'rot' ? 'grab' : 'pointer'; } else if (activeObject.isPointInside(pos)) { cursor = 'move'; } } canvases.tool.style.cursor = cursor; }
 
-    function handlePointerDown(e) {
-        if (e.button === 1) { // Middle mouse button for panning
-            state.isPanning = true;
-            state.lastX = e.clientX;
-            state.lastY = e.clientY;
-        } else {
-            startDrawing(e);
-        }
-    }
+    // -- Utility --
+    function getMousePos(evt) { const rect = canvases.tool.getBoundingClientRect(); return { x: evt.clientX - rect.left, y: evt.clientY - rect.top }; }
+    function findPageAt(x, y) { const worldPos = { x: (x - state.panX) / state.zoom, y: (y - state.panY) / state.zoom }; return state.pages.find(p => worldPos.x >= p.x && worldPos.x <= p.x + p.width && worldPos.y >= p.y && worldPos.y <= p.y + p.height); }
+    function getSnappedPos(pos, pressure) { if (!state.activeGuide) return { ...pos, pressure: pressure || 0.5 }; /* ... Snapping logic for ruler and set square ... */ return { ...pos, pressure: pressure || 0.5 }; }
+    function resizeCanvases() { const { width, height } = document.getElementById('canvas-container').getBoundingClientRect(); Object.values(canvases).forEach(c => { c.width = width; c.height = height; }); recalculatePagePositions(); requestRedraw(); }
 
-    function handlePointerMove(e) {
-        if (state.isPanning) {
-            const dx = e.clientX - state.lastX;
-            const dy = e.clientY - state.lastY;
-            state.panX += dx;
-            state.panY += dy;
-            state.lastX = e.clientX;
-            state.lastY = e.clientY;
-            requestRedraw();
-        } else if (state.isDrawing) {
-            draw(e);
-        } else if (state.activeTool === 'laser') {
-            const pos = getMousePos(e, true);
-            state.laser.x = pos.x;
-            state.laser.y = pos.y;
-        }
-    }
-
-    function handlePointerUp(e) {
-        if (state.isPanning) {
-            state.isPanning = false;
-        } else if (state.isDrawing) {
-            endDrawing(e);
-        }
-    }
-
-    function switchTool(tool) {
-        state.activeTool = tool;
-        toolbar.penToolBtn.classList.toggle('active', tool === 'pen');
-        toolbar.eraserToolBtn.classList.toggle('active', tool === 'eraser');
-        toolbar.laserToolBtn.classList.toggle('active', tool === 'laser');
-        toolbar.penOptions.classList.toggle('active', tool === 'pen');
-        toolbar.eraserOptions.classList.toggle('active', tool === 'eraser');
-    }
-
-    // -- Utility Functions --
-    function getMousePos(evt, onLiveCanvas = false) {
-        const rect = liveCanvas.getBoundingClientRect();
-        if (onLiveCanvas) {
-            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
-        }
-        return {
-            x: (evt.clientX - rect.left - state.panX) / state.zoom,
-            y: (evt.clientY - rect.top - state.panY) / state.zoom
-        };
-    }
-
-    function findPageAt(worldX, worldY) {
-        return state.pages.find(p => 
-            worldX >= p.x && worldX <= p.x + p.width &&
-            worldY >= p.y && worldY <= p.y + p.height
-        );
-    }
-
-    function resizeCanvases() {
-        const container = document.getElementById('canvas-container');
-        const { width, height } = container.getBoundingClientRect();
-        pagesCanvas.width = drawingCanvas.width = liveCanvas.width = width;
-        pagesCanvas.height = drawingCanvas.height = liveCanvas.height = height;
-        recalculatePagePositions();
-        requestRedraw();
-    }
-
-    // -- Initialization --
-    function init() {
-        resizeCanvases();
-        setupEventListeners();
-        addPageToEnd();
-        render();
-    }
-
+    // -- Init --
+    function init() { resizeCanvases(); setupEventListeners(); addPageToEnd(); switchTool(toolHandlers.pen); render(); }
     init();
 });
