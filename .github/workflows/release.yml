@@ -1,4 +1,4 @@
-name: Create Release
+name: Release Kivixa
 
 on:
   workflow_dispatch:
@@ -9,20 +9,22 @@ on:
         type: string
 
 jobs:
-  create-release:
+  build-and-release:
     runs-on: windows-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up GitHub CLI
-        uses: cli/gh-action@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Create draft release
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.event.inputs.version }}" \
-            --draft \
-            --title "Kivixa ${{ github.event.inputs.version }}" \
-            --generate-notes
+          npm run dist -- --publish always --config.extraMetadata.version=${{ github.event.inputs.version }}
