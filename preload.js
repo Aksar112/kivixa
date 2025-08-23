@@ -19,4 +19,14 @@ contextBridge.exposeInMainWorld('electron', {
 
     // Load data from main process
     onLoadNotebook: (callback) => ipcRenderer.on('load-notebook', (event, data) => callback(data)),
+
+    // Updater
+    updater: {
+        onUpdateStatus: (callback) => {
+            ipcRenderer.on('update_status', (event, message) => callback(message));
+        },
+        restartApp: () => {
+            ipcRenderer.send('restart_app');
+        }
+    }
 });
