@@ -77,7 +77,17 @@ app.whenReady().then(() => {
     });
     autoUpdater.on('error', (err) => {
         log.error('Error during update:', err);
-        mainWindow.webContents.send('update_status', 'Error during update: ' + err.message + '. Please report at https://github.com/990aa/kivixa/issues');
+        let msg = 'Error during update: ' + err.message;
+        if (err.message && err.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
+            msg = 'Network error: Please check your internet connection.';
+        } else if (err.message && err.message.includes('ENOTFOUND')) {
+            msg = 'Network error: Update server not found.';
+        } else if (err.message && err.message.includes('EACCES')) {
+            msg = 'File system error: Permission denied.';
+        } else if (err.message && err.message.includes('EIO')) {
+            msg = 'File system error: I/O error occurred.';
+        }
+        mainWindow.webContents.send('update_status', msg + ' Please report at https://github.com/990aa/kivixa/issues');
     });
 
     ipcMain.on('restart_app', () => {
@@ -104,7 +114,8 @@ ipcMain.handle('get-folders', async () => {
   return new Promise((resolve, reject) => {
     db.all('SELECT * FROM folders ORDER BY name', [], (err, rows) => {
       if (err) {
-        reject(err);
+    log.error('Database error (get-folders):', err);
+    reject(err);
       }
       resolve(rows);
     });
@@ -115,7 +126,8 @@ ipcMain.handle('add-folder', async (event, { name, parent_id }) => {
   return new Promise((resolve, reject) => {
     db.run('INSERT INTO folders (name, parent_id) VALUES (?, ?)', [name, parent_id], function (err) {
       if (err) {
-        reject(err);
+    log.error('Database error (add-folder):', err);
+    reject(err);
       }
       resolve({ id: this.lastID, name, parent_id });
     });
@@ -126,6 +138,7 @@ ipcMain.handle('delete-folder', async (event, id) => {
     return new Promise((resolve, reject) => {
         db.run('DELETE FROM folders WHERE id = ?', [id], function(err) {
             if (err) {
+                log.error('Database error (delete-folder):', err);
                 reject(err);
             }
             resolve({ id });
@@ -137,6 +150,7 @@ ipcMain.handle('get-folder', async (event, id) => {
     return new Promise((resolve, reject) => {
         db.get('SELECT * FROM folders WHERE id = ?', [id], (err, row) => {
             if (err) {
+                log.error('Database error (get-folder):', err);
                 reject(err);
             }
             resolve(row);
@@ -160,7 +174,8 @@ ipcMain.handle('get-notes', async (event, folder_id) => {
 
     db.all(query, params, (err, rows) => {
       if (err) {
-        reject(err);
+    log.error('Database error (get-notes):', err);
+    reject(err);
       }
       resolve(rows);
     });
@@ -171,6 +186,7 @@ ipcMain.handle('get-recent-notes', async () => {
     return new Promise((resolve, reject) => {
         db.all('SELECT id, title, SUBSTR(content, 1, 50) as preview FROM notes ORDER BY updated_at DESC LIMIT 10', [], (err, rows) => {
             if (err) {
+                log.error('Database error (get-recent-notes):', err);
                 reject(err);
             }
             resolve(rows);
@@ -183,7 +199,8 @@ ipcMain.handle('add-note', async (event, { title, content, folder_id }) => {
     const now = new Date().toISOString();
     db.run('INSERT INTO notes (title, content, folder_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)', [title, content, folder_id, now, now], function (err) {
       if (err) {
-        reject(err);
+    log.error('Database error (add-note):', err);
+    reject(err);
       }
       resolve({ id: this.lastID, title, content, folder_id });
     });
@@ -194,6 +211,7 @@ ipcMain.handle('get-note', async (event, id) => {
     return new Promise((resolve, reject) => {
         db.get('SELECT * FROM notes WHERE id = ?', [id], (err, row) => {
             if (err) {
+                log.error('Database error (get-note):', err);
                 reject(err);
             }
             resolve(row);
@@ -227,6 +245,7 @@ ipcMain.handle('update-note', async (event, { id, title, content, folder_id }) =
 
         db.run(query, params, function(err) {
             if (err) {
+                log.error('Database error (update-note):', err);
                 reject(err);
             }
             resolve({ id });
@@ -238,6 +257,7 @@ ipcMain.handle('delete-note', async (event, id) => {
     return new Promise((resolve, reject) => {
         db.run('DELETE FROM notes WHERE id = ?', [id], function(err) {
             if (err) {
+                log.error('Database error (delete-note):', err);
                 reject(err);
             }
             resolve({ id });
@@ -250,6 +270,7 @@ ipcMain.handle('update-note-content', async (event, { id, content }) => {
         const now = new Date().toISOString();
         db.run('UPDATE notes SET content = ?, updated_at = ? WHERE id = ?', [content, now, id], function(err) {
             if (err) {
+                log.error('Database error (update-note-content):', err);
                 reject(err);
             }
             resolve({ id });
@@ -268,6 +289,7 @@ ipcMain.handle('search-all', async (event, query) => {
         const searchQuery = `%${query}%`;
         db.all('SELECT id, title, SUBSTR(content, 1, 50) as preview FROM notes WHERE title LIKE ? OR content LIKE ?', [searchQuery, searchQuery], (err, rows) => {
             if (err) {
+                log.error('Database error (search-all):', err);
                 reject(err);
             }
             resolve(rows);
@@ -283,10 +305,14 @@ ipcMain.handle('add-tag', async (event, name) => {
                 // If the tag already exists, we can get it.
                 if (err.code === 'SQLITE_CONSTRAINT') {
                     db.get('SELECT * FROM tags WHERE name = ?', [name], (err, row) => {
-                        if (err) reject(err);
+                        if (err) {
+                            log.error('Database error (add-tag):', err);
+                            reject(err);
+                        }
                         else resolve(row);
                     });
                 } else {
+                    log.error('Database error (add-tag):', err);
                     reject(err);
                 }
             } else {
@@ -300,6 +326,7 @@ ipcMain.handle('add-note-tag', async (event, { note_id, tag_id }) => {
     return new Promise((resolve, reject) => {
         db.run('INSERT INTO note_tags (note_id, tag_id) VALUES (?, ?)', [note_id, tag_id], function(err) {
             if (err) {
+                log.error('Database error (add-note-tag):', err);
                 reject(err);
             }
             resolve({ note_id, tag_id });
@@ -311,6 +338,7 @@ ipcMain.handle('get-note-tags', async (event, note_id) => {
     return new Promise((resolve, reject) => {
         db.all('SELECT t.id, t.name FROM tags t JOIN note_tags nt ON t.id = nt.tag_id WHERE nt.note_id = ?', [note_id], (err, rows) => {
             if (err) {
+                log.error('Database error (get-note-tags):', err);
                 reject(err);
             }
             resolve(rows);
@@ -322,6 +350,7 @@ ipcMain.handle('remove-note-tag', async (event, { note_id, tag_id }) => {
     return new Promise((resolve, reject) => {
         db.run('DELETE FROM note_tags WHERE note_id = ? AND tag_id = ?', [note_id, tag_id], function(err) {
             if (err) {
+                log.error('Database error (remove-note-tag):', err);
                 reject(err);
             }
             resolve({ note_id, tag_id });
@@ -334,6 +363,7 @@ ipcMain.handle('get-documentation', async () => {
     return new Promise((resolve, reject) => {
         fs.readFile(path.join(__dirname, 'docs', 'DOCUMENTATION.md'), 'utf8', (err, data) => {
             if (err) {
+                log.error('Documentation file read error:', err);
                 reject(err);
             }
             resolve(data);

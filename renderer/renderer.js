@@ -83,11 +83,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadHelpContent() {
-        const markdown = await window.electron.getDocumentation();
-        const converter = new showdown.Converter();
-        const html = converter.makeHtml(markdown);
-        tabContents.help.innerHTML = html;
-        helpContentLoaded = true;
+        try {
+            const markdown = await window.electron.getDocumentation();
+            const converter = new showdown.Converter();
+            const html = converter.makeHtml(markdown);
+            tabContents.help.innerHTML = html;
+            helpContentLoaded = true;
+        } catch (err) {
+            let msg = 'Error loading documentation.';
+            if (err.message && err.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
+                msg = 'Network error: Please check your internet connection.';
+            } else if (err.message && err.message.includes('ENOTFOUND')) {
+                msg = 'Network error: Documentation server not found.';
+            } else if (err.message && err.message.includes('EACCES')) {
+                msg = 'File system error: Permission denied.';
+            } else if (err.message && err.message.includes('EIO')) {
+                msg = 'File system error: I/O error occurred.';
+            }
+            tabContents.help.innerHTML = `<div style="color:#c00;">${msg}</div>`;
+        }
     }
 
     // -- Classes for Tools and Shapes --
@@ -147,27 +161,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadNotebook() {
-        const note = await window.electron.getNote(CURRENT_NOTE_ID);
-        if (note && note.content) {
-            const notebookData = JSON.parse(note.content);
-            state.pages = notebookData.pages || [];
-            // Recreate drawing caches and Image elements
-            state.pages.forEach(page => {
-                page.drawingCache = document.createElement('canvas');
-                page.strokes.forEach(s => {
-                    if (s.tool.tool === 'image') {
-                        const img = new Image();
-                        img.src = s.points[0].image;
-                        s.points[0].image = img; // Replace src with Image element
-                    }
+        try {
+            const note = await window.electron.getNote(CURRENT_NOTE_ID);
+            if (note && note.content) {
+                const notebookData = JSON.parse(note.content);
+                state.pages = notebookData.pages || [];
+                // Recreate drawing caches and Image elements
+                state.pages.forEach(page => {
+                    page.drawingCache = document.createElement('canvas');
+                    page.strokes.forEach(s => {
+                        if (s.tool.tool === 'image') {
+                            const img = new Image();
+                            img.src = s.points[0].image;
+                            s.points[0].image = img; // Replace src with Image element
+                        }
+                    });
+                    redrawPageCache(page);
                 });
-                redrawPageCache(page);
-            });
-            recalculatePagePositions();
-            requestRedraw();
-        } else {
-            // If no content, start with a fresh page
-            addPageToEnd();
+                recalculatePagePositions();
+                requestRedraw();
+            } else {
+                // If no content, start with a fresh page
+                addPageToEnd();
+            }
+        } catch (err) {
+            let msg = 'Error loading notebook.';
+            if (err.message && err.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
+                msg = 'Network error: Please check your internet connection.';
+            } else if (err.message && err.message.includes('ENOTFOUND')) {
+                msg = 'Network error: Database server not found.';
+            } else if (err.message && err.message.includes('EACCES')) {
+                msg = 'File system error: Permission denied.';
+            } else if (err.message && err.message.includes('EIO')) {
+                msg = 'File system error: I/O error occurred.';
+            }
+            alert(msg);
         }
     }
 
