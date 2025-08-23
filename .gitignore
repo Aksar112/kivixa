@@ -1,6 +1,7 @@
 .env
 node_modules/
 TODO
+dist/
 
 #include later
 docs/CONTRIBUTING.md
