@@ -119,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // -- Toolbar UI References --
     const toolbar = {
         penToolBtn: document.getElementById('pen-tool-btn'),
+        eraserToolBtn: document.getElementById('eraser-tool-btn'),
+        laserToolBtn: document.getElementById('laser-tool-btn'),
         shapeToolBtn: document.getElementById('shape-tool-btn'),
         rulerToolBtn: document.getElementById('ruler-tool-btn'),
         setSquareToolBtn: document.getElementById('set-square-tool-btn'),
@@ -129,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addImageBtn: document.getElementById('add-image-btn'),
         imageUploadInput: document.getElementById('image-upload-input'),
         exportPdfBtn: document.getElementById('export-pdf-btn'),
+        insertPageBtn: document.getElementById('insert-page-btn'),
     };
 
     // -- State Management --
@@ -137,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastX: 0, lastY: 0, currentStroke: [],
         activeToolHandler: null, activeGuide: null, activeShape: null, activeObject: null,
         pen: { color: '#000000', style: 'fine-liner', thickness: 5, opacity: 1 },
+        currentPageIndex: 0,
     };
     const CURRENT_NOTE_ID = 1; // Placeholder for the active note
 
@@ -293,7 +297,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -- Core Logic --
-    function addPageToEnd() { state.pages.push({ width: 794, height: 1123, strokes: [], drawingCache: document.createElement('canvas') }); recalculatePagePositions(); markDirty(); }
+    function insertPage() {
+        const newPage = { width: 794, height: 1123, strokes: [], drawingCache: document.createElement('canvas') };
+        if (state.pages.length === 0) {
+            state.pages.push(newPage);
+            state.currentPageIndex = 0;
+        } else {
+            state.pages.splice(state.currentPageIndex + 1, 0, newPage);
+            state.currentPageIndex++;
+        }
+        recalculatePagePositions();
+        markDirty();
+    }
     function commit(item) { const page = findPageAt(item.x, item.y); if (page) { const pageItem = { ...item, x: item.x - page.x, y: item.y - page.y }; page.strokes.push({ points: [pageItem], tool: { tool: item.type } }); redrawPageCache(page); } state.activeObject = null; requestRedraw(); markDirty(); }
     function commitStroke(stroke) { if (stroke.length < 2) return; const page = findPageAt(stroke[0].x, stroke[0].y); if (page) { const pageStroke = { points: stroke.map(p => ({ x: p.x - page.x, y: p.y - page.y, pressure: p.pressure })), tool: { ...state.pen, tool: 'pen' } }; page.strokes.push(pageStroke); redrawPageCache(page); } markDirty(); }
     function redrawPageCache(page) { const c = page.drawingCache; const cctx = c.getContext('2d'); c.width = page.width; c.height = page.height; cctx.clearRect(0, 0, c.width, c.height); page.strokes.forEach(s => renderStroke(cctx, s.points, s.tool, false)); requestRedraw(); }
@@ -328,17 +343,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // -- Event Handlers & Tool Switching --
     function setupEventListeners() {
-        toolbar.penToolBtn.addEventListener('click', () => switchTool(toolHandlers.pen));
-        toolbar.shapeToolBtn.addEventListener('click', () => toolbar.shapeOptions.style.display = 'block');
-        document.querySelectorAll('.shape-type-btn').forEach(btn => btn.addEventListener('click', () => { switchTool(toolHandlers.defineShape, { shapeType: btn.dataset.shape }); toolbar.shapeOptions.style.display = 'none'; }));
+        toolbar.penToolBtn.addEventListener('click', () => switchTool(toolHandlers.pen, toolbar.penToolBtn));
+        toolbar.eraserToolBtn.addEventListener('click', () => switchTool(toolHandlers.eraser, toolbar.eraserToolBtn));
+        toolbar.laserToolBtn.addEventListener('click', () => switchTool(toolHandlers.laser, toolbar.laserToolBtn));
+        toolbar.shapeToolBtn.addEventListener('click', () => {
+            toolbar.shapeOptions.style.display = 'block';
+            updateActiveButton(toolbar.shapeToolBtn);
+        });
+        document.querySelectorAll('.shape-type-btn').forEach(btn => btn.addEventListener('click', () => { 
+            switchTool(toolHandlers.defineShape, { shapeType: btn.dataset.shape }); 
+            toolbar.shapeOptions.style.display = 'none'; 
+        }));
         toolbar.rulerToolBtn.addEventListener('click', () => toggleGuide('ruler'));
         toolbar.setSquareToolBtn.addEventListener('click', () => toggleGuide('setSquare'));
         toolbar.compassToolBtn.addEventListener('click', () => toggleGuide('compass'));
-        toolbar.commitShapeBtn.addEventListener('click', () => { if (state.activeObject) { commit(state.activeObject); } switchTool(toolHandlers.pen); });
+        toolbar.commitShapeBtn.addEventListener('click', () => { if (state.activeObject) { commit(state.activeObject); } switchTool(toolHandlers.pen, toolbar.penToolBtn); });
         canvases.tool.addEventListener('pointerdown', (e) => { const pos = getMousePos(e); const activeObject = state.activeShape || state.activeGuide || state.activeObject; if (activeObject && activeObject.getHandleAt(pos)) { switchTool(toolHandlers.manipulate, { target: activeObject }); } if (state.activeToolHandler && state.activeToolHandler.onPointerDown) state.activeToolHandler.onPointerDown(e, pos); });
         canvases.tool.addEventListener('pointermove', (e) => { const pos = getMousePos(e); if (state.activeToolHandler && state.activeToolHandler.onPointerMove) state.activeToolHandler.onPointerMove(e, pos); updateCursor(e, pos); });
         canvases.tool.addEventListener('pointerup', (e) => { const pos = getMousePos(e); if (state.activeToolHandler && state.activeToolHandler.onPointerUp) state.activeToolHandler.onPointerUp(e, pos); });
         window.addEventListener('resize', resizeCanvases);
+
+        // Page Management
+        toolbar.insertPageBtn.addEventListener('click', insertPage);
 
         // Image Upload
         toolbar.addImageBtn.addEventListener('click', () => toolbar.imageUploadInput.click());
@@ -364,7 +390,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function switchTool(handler, options = {}) { if (state.activeToolHandler && state.activeToolHandler.onDeactivate) state.activeToolHandler.onDeactivate(); state.activeToolHandler = handler; if (state.activeToolHandler && state.activeToolHandler.onActivate) state.activeToolHandler.onActivate(options); }
+    function updateActiveButton(activeButton) {
+        const toolButtons = [
+            toolbar.penToolBtn,
+            toolbar.eraserToolBtn,
+            toolbar.laserToolBtn,
+            toolbar.shapeToolBtn,
+            toolbar.rulerToolBtn,
+            toolbar.setSquareToolBtn,
+            toolbar.compassToolBtn,
+        ];
+        toolButtons.forEach(button => {
+            if (button) {
+                button.classList.remove('active');
+            }
+        });
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+    }
+
+    function switchTool(handler, activeButton, options = {}) { 
+        if (state.activeToolHandler && state.activeToolHandler.onDeactivate) state.activeToolHandler.onDeactivate(); 
+        state.activeToolHandler = handler; 
+        if (state.activeToolHandler && state.activeToolHandler.onActivate) state.activeToolHandler.onActivate(options);
+        updateActiveButton(activeButton);
+    }
     function toggleGuide(guideType) { if (state.activeGuide?.type === guideType) { state.activeGuide = null; } else { const GuideClass = { ruler: Ruler, setSquare: SetSquare, compass: Compass }[guideType]; state.activeGuide = new GuideClass(300, 300); state.activeGuide.type = guideType; } requestRedraw(); }
     function updateCursor(e, pos) { let cursor = 'default'; const activeObject = state.activeShape || state.activeGuide || state.activeObject; if (activeObject) { const handle = activeObject.getHandleAt(pos); if (handle) { cursor = handle === 'rot' ? 'grab' : 'pointer'; } else if (activeObject.isPointInside(pos)) { cursor = 'move'; } } canvases.tool.style.cursor = cursor; }
 
@@ -431,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeCanvases();
         setupEventListeners();
         loadNotebook();
-        switchTool(toolHandlers.pen);
+        switchTool(toolHandlers.pen, toolbar.penToolBtn);
         render();
     }
 
