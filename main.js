@@ -1,19 +1,38 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const log = require('electron-log');
+const fs = require('fs');
 
 // Configure electron-log
 log.transports.file.level = 'info';
 log.transports.file.resolvePath = () => require('path').join(app.getPath('userData'), 'logs/main.log');
 
+// Additional log file for developer analysis (project root)
+const devLogPath = require('path').join(__dirname, 'error.log');
+const userLogPath = require('path').join(__dirname, 'user-errors.log');
+
+function logToFile(filePath, message) {
+    try {
+        fs.appendFileSync(filePath, `[${new Date().toISOString()}] ${message}\n`);
+    } catch (e) {
+        // If logging fails, ignore to avoid recursive errors
+    }
+}
+
 // Global error/crash handling
 process.on('uncaughtException', (error) => {
-    log.error('Uncaught Exception:', error);
+    const errorMsg = 'Uncaught Exception: ' + (error && error.stack ? error.stack : error);
+    log.error(errorMsg);
+    logToFile(devLogPath, errorMsg);
+    logToFile(userLogPath, errorMsg);
     dialog.showErrorBox('A critical error occurred',
         'An unexpected error has occurred and has been logged. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (error && error.stack ? error.stack : error));
     app.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-    log.error('Unhandled Rejection:', reason);
+    const errorMsg = 'Unhandled Rejection: ' + (reason && reason.stack ? reason.stack : reason);
+    log.error(errorMsg);
+    logToFile(devLogPath, errorMsg);
+    logToFile(userLogPath, errorMsg);
     dialog.showErrorBox('A critical error occurred',
         'An unexpected error has occurred and has been logged. Please report this at https://github.com/990aa/kivixa/issues.\n\n' + (reason && reason.stack ? reason.stack : reason));
     app.exit(1);
