@@ -1,3 +1,19 @@
+// Window Controls IPC
+ipcMain.on('window-minimize', () => {
+    if (mainWindow) mainWindow.minimize();
+});
+ipcMain.on('window-maximize-or-restore', () => {
+    if (mainWindow) {
+        if (mainWindow.isMaximized()) {
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    }
+});
+ipcMain.on('window-close', () => {
+    if (mainWindow) mainWindow.close();
+});
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const log = require('electron-log');
 const fs = require('fs');

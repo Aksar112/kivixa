@@ -1,3 +1,12 @@
+// Window Controls
+contextBridge.exposeInMainWorld('electron', {
+    ...window.electron,
+    windowControls: {
+        minimize: () => ipcRenderer.send('window-minimize'),
+        maximizeOrRestore: () => ipcRenderer.send('window-maximize-or-restore'),
+        close: () => ipcRenderer.send('window-close')
+    }
+});
 const { contextBridge, ipcRenderer } = require('electron');
 
 const { app } = require('electron');

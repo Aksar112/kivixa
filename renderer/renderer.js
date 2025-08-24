@@ -2,6 +2,15 @@ import { jsPDF } from "jspdf";
 import showdown from 'showdown';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Window Controls ---
+    const minBtn = document.getElementById('min-btn');
+    const maxBtn = document.getElementById('max-btn');
+    const closeBtn = document.getElementById('close-btn');
+    if (minBtn && maxBtn && closeBtn && window.electron?.windowControls) {
+        minBtn.addEventListener('click', () => window.electron.windowControls.minimize());
+        maxBtn.addEventListener('click', () => window.electron.windowControls.maximizeOrRestore());
+        closeBtn.addEventListener('click', () => window.electron.windowControls.close());
+    }
     // Set About version dynamically
     const aboutVersion = document.getElementById('about-version');
     if (aboutVersion && window.electron?.getAppVersion) {

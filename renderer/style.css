@@ -1,3 +1,33 @@
+/* Window Controls */
+#window-controls {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1001;
+    display: flex;
+    gap: 0;
+    background: #222;
+    border-bottom-left-radius: 8px;
+    box-shadow: 0 2px 8px #0002;
+}
+#window-controls button {
+    width: 44px;
+    height: 36px;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 1.3em;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.2s;
+}
+#window-controls button:hover {
+    background: #444;
+}
+#window-controls #close-btn:hover {
+    background: #c0392b;
+    color: #fff;
+}
 body, html {
     margin: 0;
     padding: 0;
