@@ -29,6 +29,21 @@ const userLogPath = require('path').join(__dirname, 'user-errors.log');
 function logToFile(filePath, message) {
     try {
         fs.appendFileSync(filePath, `[${new Date().toISOString()}] ${message}\n`);
+        // If this is an error log, also copy the latest error logs from userData to project directory
+        if (filePath === devLogPath || filePath === userLogPath) {
+            const userDataLogDir = require('path').join(app.getPath('userData'), 'logs');
+            const projectLogDir = __dirname;
+            // Copy all .log files from userData/logs to project dir with a prefix
+            fs.readdir(userDataLogDir, (err, files) => {
+                if (!err && files) {
+                    files.filter(f => f.endsWith('.log')).forEach(f => {
+                        const src = require('path').join(userDataLogDir, f);
+                        const dest = require('path').join(projectLogDir, 'userData_' + f);
+                        fs.copyFile(src, dest, () => {});
+                    });
+                }
+            });
+        }
     } catch (e) {
         // If logging fails, ignore to avoid recursive errors
     }
