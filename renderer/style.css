@@ -1,3 +1,45 @@
+/* Sidebar for folders/notes */
+#sidebar {
+    width: 240px;
+    height: 100vh;
+    background: #23272b;
+    color: #fff;
+    padding: 18px 12px 12px 12px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    flex-shrink: 0;
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#sidebar h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+    color: #00aaff;
+}
+#folder-list, #note-list {
+    margin-bottom: 10px;
+}
+#folder-list button, #note-list button {
+    width: 100%;
+    background: #333;
+    color: #fff;
+    border: none;
+    padding: 8px 6px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#folder-list button:hover, #note-list button:hover {
+    background: #007bff;
+}
+
+#toolbar {
+    display: none;
+}
 /* Window Controls */
 #window-controls {
     position: fixed;

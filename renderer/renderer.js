@@ -2,6 +2,66 @@ import { jsPDF } from "jspdf";
 import showdown from 'showdown';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Sidebar logic ---
+    const sidebar = document.getElementById('sidebar');
+    const folderList = document.getElementById('folder-list');
+    const noteList = document.getElementById('note-list');
+    const toolbarDiv = document.getElementById('toolbar');
+
+    // Helper to render folders
+    async function loadFolders() {
+        if (!folderList) return;
+        folderList.innerHTML = '';
+        try {
+            const folders = await window.electron.getFolders();
+            folders.forEach(folder => {
+                const btn = document.createElement('button');
+                btn.textContent = folder.name;
+                btn.onclick = () => loadNotes(folder.id);
+                folderList.appendChild(btn);
+            });
+        } catch (e) {
+            folderList.innerHTML = '<div style="color:#c0392b">Failed to load folders</div>';
+        }
+    }
+
+    // Helper to render notes
+    async function loadNotes(folderId) {
+        if (!noteList) return;
+        noteList.innerHTML = '';
+        try {
+            const notes = await window.electron.getNotes(folderId);
+            notes.forEach(note => {
+                const btn = document.createElement('button');
+                btn.textContent = note.title;
+                btn.onclick = () => openNote(note.id);
+                noteList.appendChild(btn);
+            });
+        } catch (e) {
+            noteList.innerHTML = '<div style="color:#c0392b">Failed to load notes</div>';
+        }
+    }
+
+    // Open note: show toolbar, hide sidebar
+    function openNote(noteId) {
+        if (toolbarDiv) toolbarDiv.style.display = '';
+        if (sidebar) sidebar.style.display = 'none';
+        // Optionally, load note content into canvas or main area here
+    }
+
+    // Home: show sidebar, hide toolbar
+    function showHome() {
+        if (toolbarDiv) toolbarDiv.style.display = 'none';
+        if (sidebar) sidebar.style.display = '';
+        loadFolders();
+        loadNotes();
+    }
+
+    // Initial load
+    showHome();
+
+    // Optionally, add a Home button to return to sidebar view
+    // Example: window.showHome = showHome;
     // --- Window Controls ---
     const minBtn = document.getElementById('min-btn');
     const maxBtn = document.getElementById('max-btn');
