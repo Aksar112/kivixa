@@ -125,17 +125,27 @@ app.whenReady().then(() => {
     });
     autoUpdater.on('error', (err) => {
         log.error('Error during update:', err);
-        let msg = 'Error during update: ' + err.message;
-        if (err.message && err.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
-            msg = 'Network error: Please check your internet connection.';
-        } else if (err.message && err.message.includes('ENOTFOUND')) {
-            msg = 'Network error: Update server not found.';
-        } else if (err.message && err.message.includes('EACCES')) {
-            msg = 'File system error: Permission denied.';
-        } else if (err.message && err.message.includes('EIO')) {
-            msg = 'File system error: I/O error occurred.';
+        let msg = 'Error during update: ' + (err && err.message ? err.message : err);
+        if (err && err.message) {
+            if (err.message.includes('net::ERR_INTERNET_DISCONNECTED')) {
+                msg = 'Network error: Please check your internet connection.';
+            } else if (err.message.includes('ENOTFOUND')) {
+                msg = 'Network error: Update server not found.';
+            } else if (err.message.includes('EACCES')) {
+                msg = 'File system error: Permission denied.';
+            } else if (err.message.includes('EIO')) {
+                msg = 'File system error: I/O error occurred.';
+            } else if (err.message.includes('No published versions on GitHub') || err.message.includes('Cannot parse releases feed') || err.message.includes('Unable to find latest version on GitHub')) {
+                msg = 'Auto-update error: No valid release or latest.yml found on GitHub. Please ensure a production release exists with all required files (including latest.yml). See https://www.electron.build/auto-update for help.';
+            } else if (err.message.includes('Cannot find latest.yml')) {
+                msg = 'Auto-update error: latest.yml is missing from the latest GitHub release. Please publish using electron-builder and upload all artifacts.';
+            }
         }
         mainWindow.webContents.send('update_status', msg + ' Please report at https://github.com/990aa/kivixa/issues');
+        // Optionally show a dialog for critical update errors
+        if (msg.startsWith('Auto-update error:')) {
+            dialog.showErrorBox('Auto-update Error', msg);
+        }
     });
 
     ipcMain.on('restart_app', () => {
