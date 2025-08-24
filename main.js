@@ -90,7 +90,7 @@ function createWindow() {
                 contextIsolation: true
             }
         });
-        splashWindow.loadFile('renderer/splash.html').catch(err => {
+        splashWindow.loadFile(path.join(__dirname, 'renderer/splash.html')).catch(err => {
             log.error('Splash load error:', err);
         });
 
